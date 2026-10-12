@@ -91,7 +91,7 @@ WHERE (country = 'USA' OR country = 'France') AND creditLimit > 100000;`
           <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-dim)', marginBottom: '8px' }}>
             QUICK PRESET QUERIES:
           </div>
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px' }}>
             {presetQueries.map((preset) => (
               <button
                 key={preset.id}
@@ -105,7 +105,8 @@ WHERE (country = 'USA' OR country = 'France') AND creditLimit > 100000;`
                   fontSize: '0.76rem',
                   fontWeight: 600,
                   cursor: 'pointer',
-                  whiteSpace: 'nowrap'
+                  whiteSpace: 'nowrap',
+                  flexShrink: 0
                 }}
               >
                 {preset.title}

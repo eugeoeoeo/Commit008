@@ -268,9 +268,9 @@ export default function QuizModal({
               disabled={isRevealed}
               style={{
                 display: 'flex',
-                alignItems: 'center',
+                alignItems: 'flex-start',
                 gap: '12px',
-                padding: '14px 18px',
+                padding: '12px 14px',
                 borderRadius: 'var(--radius-md)',
                 background: btnBg,
                 border: `1px solid ${borderColor}`,
@@ -278,9 +278,10 @@ export default function QuizModal({
                 textAlign: 'left',
                 cursor: isRevealed ? 'default' : 'pointer',
                 fontFamily: 'var(--font-sans)',
-                fontSize: '0.88rem',
+                fontSize: '0.86rem',
                 lineHeight: 1.45,
-                transition: 'all 0.2s ease'
+                transition: 'all 0.2s ease',
+                wordBreak: 'break-word'
               }}
             >
               <div style={{
@@ -298,7 +299,8 @@ export default function QuizModal({
                 justifyContent: 'center',
                 fontSize: '0.78rem',
                 fontWeight: 700,
-                flexShrink: 0
+                flexShrink: 0,
+                marginTop: '1px'
               }}>
                 {String.fromCharCode(65 + optIdx)}
               </div>

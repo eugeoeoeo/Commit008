@@ -226,21 +226,23 @@ export default function LessonViewer({
           gap: '10px'
         }}>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-              <span className="badge badge-crimson">
-                Module {currentModule.moduleNumber}: {currentModule.title}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px', flexWrap: 'wrap' }}>
+              <span className="badge badge-crimson" style={{ fontSize: '0.72rem' }}>
+                <span className="desktop-only-inline">Module {currentModule.moduleNumber}: {currentModule.title}</span>
+                <span className="mobile-only-inline">Mod {currentModule.moduleNumber}</span>
               </span>
               <button
                 onClick={() => setShowModuleDrawer(!showModuleDrawer)}
                 className="badge badge-cyan"
-                style={{ cursor: 'pointer', border: '1px solid rgba(56,189,248,0.4)', background: 'rgba(56,189,248,0.1)' }}
+                style={{ cursor: 'pointer', border: '1px solid rgba(56,189,248,0.4)', background: 'rgba(56,189,248,0.1)', fontSize: '0.72rem' }}
               >
                 <Layers size={11} style={{ marginRight: '4px' }} />
-                <span>Jump to Lesson ({allLessons.length} available)</span>
+                <span className="desktop-only-inline">Jump to Lesson ({allLessons.length} available)</span>
+                <span className="mobile-only-inline">Jump ({allLessons.length})</span>
               </button>
             </div>
 
-            <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>
+            <h2 style={{ fontSize: 'clamp(1.1rem, 4vw, 1.35rem)', fontWeight: 800, color: '#fff', wordBreak: 'break-word' }}>
               Lesson {currentLesson.lessonNumber}: {currentLesson.title}
             </h2>
             <p style={{ fontSize: '0.82rem', color: 'var(--text-muted)' }}>
@@ -424,16 +426,16 @@ export default function LessonViewer({
                 flexWrap: 'wrap',
                 gap: '10px'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--pup-gold)', fontWeight: 700 }}>
-                    Part {currentPartIndex + 1} of {sections.length}:
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
+                  <span style={{ fontSize: '0.78rem', color: 'var(--pup-gold)', fontWeight: 700, flexShrink: 0 }}>
+                    Part {currentPartIndex + 1}/{sections.length}:
                   </span>
-                  <span style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 600 }}>
+                  <span style={{ fontSize: '0.85rem', color: '#fff', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                     {currentSection.title}
                   </span>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
                   <button
                     onClick={() => setShowAllParts(!showAllParts)}
                     style={{
@@ -535,14 +537,14 @@ export default function LessonViewer({
                       <ArrowRight size={15} />
                     </button>
                   ) : (
-                    <div style={{ display: 'flex', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', width: '100%', justifyContent: 'flex-end' }}>
                       <button
                         onClick={() => {
                           const upd = markLessonComplete(currentLesson.id);
                           if (onUpdateProgress) onUpdateProgress(upd);
                         }}
                         className="btn btn-secondary"
-                        style={{ fontSize: '0.82rem' }}
+                        style={{ fontSize: '0.82rem', flex: '1 1 180px' }}
                       >
                         <CheckCircle2 size={16} color="var(--accent-emerald)" />
                         <span>Mark Lesson Complete</span>
@@ -550,7 +552,7 @@ export default function LessonViewer({
                       <button
                         onClick={() => setActiveTab('quiz')}
                         className="btn btn-primary"
-                        style={{ fontSize: '0.82rem' }}
+                        style={{ fontSize: '0.82rem', flex: '1 1 200px' }}
                       >
                         <span>Take Lesson Quiz ({lessonQuiz.length} Items)</span>
                         <ChevronRight size={16} />
@@ -690,29 +692,30 @@ export default function LessonViewer({
         justifyContent: 'space-between',
         alignItems: 'center',
         marginTop: '10px',
-        padding: '12px 0'
+        padding: '12px 0',
+        gap: '8px'
       }}>
         {prevLesson ? (
           <button
             onClick={() => handleSelectDifferentLesson(prevLesson.id)}
             className="btn btn-secondary"
-            style={{ fontSize: '0.82rem' }}
+            style={{ fontSize: '0.82rem', flex: 1, minWidth: 0, justifyContent: 'center' }}
           >
-            <ChevronLeft size={16} />
-            <span>Prev Lesson</span>
+            <ChevronLeft size={16} style={{ flexShrink: 0 }} />
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Prev Lesson</span>
             <span className="desktop-only-inline">: {prevLesson.title}</span>
           </button>
-        ) : <div />}
+        ) : <div style={{ flex: 1 }} />}
 
         {nextLesson && (
           <button
             onClick={() => handleSelectDifferentLesson(nextLesson.id)}
             className="btn btn-secondary"
-            style={{ fontSize: '0.82rem' }}
+            style={{ fontSize: '0.82rem', flex: 1, minWidth: 0, justifyContent: 'center' }}
           >
-            <span>Next Lesson</span>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Next Lesson</span>
             <span className="desktop-only-inline">: {nextLesson.title}</span>
-            <ChevronRight size={16} />
+            <ChevronRight size={16} style={{ flexShrink: 0 }} />
           </button>
         )}
       </div>

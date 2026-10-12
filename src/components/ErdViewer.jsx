@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Database, Key, Link2, Eye, LayoutGrid, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 
 export default function ErdViewer({ activeHighlight = null }) {
-  const [hoveredTable, setHoveredTable] = useState(null);
-  const [viewMode, setViewMode] = useState('diagram'); // 'diagram' | 'cards'
+  const isMobile = typeof window !== 'undefined' ? window.innerWidth <= 768 : false;
+  const [viewMode, setViewMode] = useState(isMobile ? 'cards' : 'diagram'); // 'diagram' | 'cards'
   const [zoomLevel, setZoomLevel] = useState(1);
+  const [hoveredTable, setHoveredTable] = useState(null);
 
   // 6 Relational Tables matching Prof. Contreras' curriculum & Image 1
   const tables = [
@@ -250,15 +251,27 @@ export default function ErdViewer({ activeHighlight = null }) {
 
       {/* VIEW MODE 1: Interactive SVG Diagram */}
       {viewMode === 'diagram' && (
-        <div style={{
-          width: '100%',
-          overflowX: 'auto',
-          WebkitOverflowScrolling: 'touch',
-          background: '#070b14',
-          borderRadius: 'var(--radius-md)',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          padding: '12px'
-        }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+          <div className="mobile-only-inline" style={{
+            fontSize: '0.73rem',
+            color: 'var(--accent-cyan)',
+            background: 'rgba(56, 189, 248, 0.08)',
+            border: '1px solid rgba(56, 189, 248, 0.2)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '5px 10px',
+            textAlign: 'center'
+          }}>
+            ↔ Swipe horizontally to inspect all 6 tables and join relationships (or switch to Table Cards view)
+          </div>
+          <div style={{
+            width: '100%',
+            overflowX: 'auto',
+            WebkitOverflowScrolling: 'touch',
+            background: '#070b14',
+            borderRadius: 'var(--radius-md)',
+            border: '1px solid rgba(255, 255, 255, 0.08)',
+            padding: '12px'
+          }}>
           <div style={{
             minWidth: `${940 * zoomLevel}px`,
             transition: 'width 0.2s ease',
@@ -414,6 +427,7 @@ export default function ErdViewer({ activeHighlight = null }) {
             </svg>
           </div>
         </div>
+      </div>
       )}
 
       {/* VIEW MODE 2: Responsive Table Schema Cards (Optimal for Phones) */}

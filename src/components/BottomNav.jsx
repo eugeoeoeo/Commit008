@@ -27,26 +27,29 @@ export default function BottomNav({ activeTab, setActiveTab, completionPercentag
             aria-current={isActive ? 'page' : undefined}
           >
             <div className="nav-icon-wrapper" style={{ position: 'relative' }}>
-              <Icon size={20} strokeWidth={isActive ? 2.5 : 1.8} />
+              <Icon size={19} strokeWidth={isActive ? 2.5 : 1.8} />
               {item.badge && (
                 <span style={{
                   position: 'absolute',
                   top: '-4px',
-                  right: '-8px',
+                  right: '-6px',
                   background: 'var(--pup-crimson)',
                   color: '#fff',
-                  fontSize: '0.58rem',
-                  padding: '1px 4px',
-                  borderRadius: '6px',
+                  fontSize: '0.54rem',
+                  padding: '1px 3px',
+                  borderRadius: '4px',
                   fontWeight: 800,
-                  letterSpacing: '0.02em',
-                  boxShadow: '0 0 6px rgba(225,29,72,0.8)'
+                  letterSpacing: '0.01em',
+                  boxShadow: '0 0 6px rgba(225,29,72,0.8)',
+                  pointerEvents: 'none'
                 }}>
                   {item.badge}
                 </span>
               )}
             </div>
-            <span style={{ fontSize: '0.72rem' }}>{item.label}</span>
+            <span style={{ fontSize: '0.68rem', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {item.label}
+            </span>
           </button>
         );
       })}

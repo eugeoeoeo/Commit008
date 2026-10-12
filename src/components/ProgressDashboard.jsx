@@ -122,8 +122,8 @@ export default function ProgressDashboard({ userProgress, onResetProgress, onSel
       {/* 3 Metric Cards */}
       <div style={{
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))',
-        gap: '16px'
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(220px, 100%), 1fr))',
+        gap: '14px'
       }}>
         <div className="glass-card" style={{ padding: '20px' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
@@ -211,7 +211,7 @@ export default function ProgressDashboard({ userProgress, onResetProgress, onSel
                   </div>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '8px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(min(170px, 100%), 1fr))', gap: '8px' }}>
                   {moduleLessons.map((l) => {
                     const isDone = userProgress?.completedLessons?.[l.id];
                     const qSc = userProgress?.quizScores?.[l.id];
@@ -237,15 +237,15 @@ export default function ProgressDashboard({ userProgress, onResetProgress, onSel
                           cursor: 'pointer'
                         }}
                       >
-                        <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: '140px' }}>
+                        <span style={{ flex: 1, minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', marginRight: '6px' }}>
                           L{l.lessonNumber}: {l.title}
                         </span>
                         {isDone ? (
-                          <CheckCircle2 size={14} color="var(--accent-emerald)" />
+                          <CheckCircle2 size={14} color="var(--accent-emerald)" style={{ flexShrink: 0 }} />
                         ) : qSc ? (
-                          <span style={{ fontSize: '0.7rem', color: 'var(--pup-gold)' }}>{qSc.percentage}%</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--pup-gold)', flexShrink: 0 }}>{qSc.percentage}%</span>
                         ) : (
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)' }}>—</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-dim)', flexShrink: 0 }}>—</span>
                         )}
                       </button>
                     );
@@ -314,11 +314,11 @@ export default function ProgressDashboard({ userProgress, onResetProgress, onSel
             </p>
           </div>
 
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', width: '100%' }}>
             <button
               onClick={handleExport}
               className="btn btn-secondary"
-              style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px', flex: '1 1 180px', justifyContent: 'center' }}
             >
               <Download size={15} color="var(--accent-cyan)" />
               <span>Export Backup (.json)</span>
@@ -327,7 +327,7 @@ export default function ProgressDashboard({ userProgress, onResetProgress, onSel
             <button
               onClick={() => fileInputRef.current?.click()}
               className="btn btn-secondary"
-              style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px' }}
+              style={{ fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px', flex: '1 1 180px', justifyContent: 'center' }}
             >
               <Upload size={15} color="var(--pup-gold)" />
               <span>Import / Restore (.json)</span>

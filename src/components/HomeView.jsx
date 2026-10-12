@@ -30,37 +30,38 @@ export default function HomeView({
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       {/* Hero Banner */}
       <div className="glass-card" style={{
-        padding: '30px 24px',
+        padding: '24px 20px',
         background: 'linear-gradient(135deg, rgba(225, 29, 72, 0.12), rgba(15, 23, 42, 0.9) 70%)',
         border: '1px solid rgba(225, 29, 72, 0.3)',
         position: 'relative'
       }}>
         <div style={{ maxWidth: '820px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' }}>
-            <span className="badge badge-crimson">
-              Polytechnic University of the Philippines
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px', flexWrap: 'wrap' }}>
+            <span className="badge badge-crimson" style={{ fontSize: '0.7rem', padding: '3px 8px' }}>
+              PUP CCIS
             </span>
-            <span className="badge badge-gold">
-              CCIS BSIT
+            <span className="badge badge-gold" style={{ fontSize: '0.7rem', padding: '3px 8px' }}>
+              BSIT
             </span>
-            <span className="badge badge-cyan">
+            <span className="badge badge-cyan" style={{ fontSize: '0.7rem', padding: '3px 8px' }}>
               COMP 008
             </span>
           </div>
 
           <h1 style={{
-            fontSize: '2rem',
+            fontSize: 'clamp(1.25rem, 4.5vw, 1.95rem)',
             fontWeight: 800,
             color: '#fff',
             lineHeight: 1.25,
             marginBottom: '8px',
-            letterSpacing: '-0.02em'
+            letterSpacing: '-0.02em',
+            wordBreak: 'break-word'
           }}>
             Database Administration Midterm Reviewer
           </h1>
 
           <p style={{
-            fontSize: '0.96rem',
+            fontSize: '0.88rem',
             color: '#cbd5e1',
             lineHeight: 1.6,
             marginBottom: '16px'
@@ -70,41 +71,52 @@ export default function HomeView({
 
           {/* Quick Resume Learning Card */}
           <div style={{
-            display: 'inline-flex',
+            display: 'flex',
             alignItems: 'center',
-            gap: '14px',
+            gap: '12px',
             background: 'rgba(255, 255, 255, 0.05)',
             border: '1px solid var(--border-subtle)',
-            padding: '10px 18px',
+            padding: '10px 14px',
             borderRadius: 'var(--radius-md)',
-            cursor: 'pointer'
+            cursor: 'pointer',
+            width: '100%',
+            maxWidth: '480px',
+            boxSizing: 'border-box'
           }}
           onClick={() => {
             onSelectLesson(nextUnfinishedLesson.id);
             setActiveTab('lessons');
           }}>
             <div style={{
-              width: '34px',
-              height: '34px',
+              width: '32px',
+              height: '32px',
               borderRadius: '50%',
               background: 'var(--pup-crimson)',
               color: '#fff',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              boxShadow: '0 2px 10px rgba(225, 29, 72, 0.4)'
+              boxShadow: '0 2px 10px rgba(225, 29, 72, 0.4)',
+              flexShrink: 0
             }}>
-              <Play size={16} fill="#fff" />
+              <Play size={15} fill="#fff" />
             </div>
-            <div>
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>
                 {completedLessonsCount > 0 ? 'Resume Studying' : 'Start Reviewer'}
               </div>
-              <div style={{ fontSize: '0.9rem', fontWeight: 700, color: '#fff' }}>
+              <div style={{
+                fontSize: '0.86rem',
+                fontWeight: 700,
+                color: '#fff',
+                whiteSpace: 'nowrap',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis'
+              }}>
                 {nextUnfinishedLesson.title}
               </div>
             </div>
-            <ChevronRight size={18} color="var(--text-dim)" />
+            <ChevronRight size={18} color="var(--text-dim)" style={{ flexShrink: 0 }} />
           </div>
         </div>
       </div>
@@ -214,13 +226,13 @@ export default function HomeView({
                           transition: 'all 0.15s ease'
                         }}
                       >
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '240px' }}>
+                        <span style={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginRight: '8px' }}>
                           L{lesson.lessonNumber}. {lesson.title}
                         </span>
                         {isDone ? (
-                          <CheckCircle2 size={14} color="var(--accent-emerald)" />
+                          <CheckCircle2 size={14} color="var(--accent-emerald)" style={{ flexShrink: 0 }} />
                         ) : (
-                          <ChevronRight size={14} color="var(--text-dim)" />
+                          <ChevronRight size={14} color="var(--text-dim)" style={{ flexShrink: 0 }} />
                         )}
                       </div>
                     );

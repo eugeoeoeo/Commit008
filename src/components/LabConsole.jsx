@@ -164,6 +164,39 @@ export default function LabConsole({
           </div>
         </div>
 
+        {/* Mobile-friendly SQL helper chips */}
+        <div style={{
+          display: 'flex',
+          gap: '5px',
+          overflowX: 'auto',
+          WebkitOverflowScrolling: 'touch',
+          paddingBottom: '6px',
+          marginBottom: '6px'
+        }}>
+          {['SELECT', 'FROM', 'WHERE', 'JOIN', 'ON', 'ORDER BY', 'AND', 'OR', '*', 'LIMIT'].map((kw) => (
+            <button
+              key={kw}
+              type="button"
+              onClick={() => setSql((prev) => prev ? `${prev} ${kw} ` : `${kw} `)}
+              style={{
+                background: 'rgba(255, 255, 255, 0.05)',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                color: 'var(--accent-cyan)',
+                fontFamily: 'var(--font-mono)',
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                padding: '3px 8px',
+                borderRadius: '4px',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap',
+                flexShrink: 0
+              }}
+            >
+              +{kw}
+            </button>
+          ))}
+        </div>
+
         <textarea
           id="sql-editor-textarea"
           value={sql}
@@ -176,12 +209,13 @@ export default function LabConsole({
             color: '#38bdf8',
             fontFamily: 'var(--font-mono)',
             fontSize: '16px',
-            padding: '14px',
+            padding: '12px 14px',
             borderRadius: 'var(--radius-md)',
             border: '1px solid rgba(255, 255, 255, 0.12)',
             outline: 'none',
             resize: 'vertical',
-            lineHeight: 1.5
+            lineHeight: 1.5,
+            boxSizing: 'border-box'
           }}
           placeholder="Write your SQL statement here..."
         />
@@ -193,7 +227,7 @@ export default function LabConsole({
           id="btn-execute-sql"
           onClick={handleExecute}
           className="btn btn-secondary"
-          style={{ flex: 1, minWidth: '130px' }}
+          style={{ flex: '1 1 130px' }}
         >
           <Play size={16} color="var(--accent-cyan)" />
           <span>Execute Query</span>
@@ -204,7 +238,7 @@ export default function LabConsole({
             id="btn-verify-lab"
             onClick={handleVerify}
             className="btn btn-primary"
-            style={{ flex: 1, minWidth: '150px' }}
+            style={{ flex: '1 1 180px' }}
           >
             <CheckCircle size={16} />
             <span>Verify & Grade Solution</span>

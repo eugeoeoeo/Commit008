@@ -24,6 +24,7 @@ import { saveExamAttempt } from '../utils/storage.js';
 export default function ExamEngine({ onExamComplete }) {
   const [examPart, setExamPart] = useState('mcq'); // 'mcq' | 'id' | 'tf' | 'lab'
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  const [showJumpDrawer, setShowJumpDrawer] = useState(false);
 
   // User state
   const [mcqAnswers, setMcqAnswers] = useState({}); // { [id]: selectedIdx }
@@ -32,6 +33,19 @@ export default function ExamEngine({ onExamComplete }) {
   const [flagged, setFlagged] = useState({});       // { [id]: boolean }
   const [labPassed, setLabPassed] = useState(false);
   const [sampleOutputView, setSampleOutputView] = useState('terminal'); // 'terminal' | 'grid'
+
+  const scrollToQuestion = (qNum, part) => {
+    if (part && part !== examPart) {
+      setExamPart(part);
+    }
+    setShowJumpDrawer(false);
+    setTimeout(() => {
+      const el = document.getElementById(`exam-q-${qNum}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  };
 
   // Timer
   const [secondsLeft, setSecondsLeft] = useState(90 * 60); // 90 minutes
@@ -268,32 +282,32 @@ export default function ExamEngine({ onExamComplete }) {
           </h3>
 
           {/* Part Switcher for Review */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto' }}>
+          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px' }}>
             <button
               onClick={() => setExamPart('mcq')}
               className={`btn ${examPart === 'mcq' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.8rem' }}
+              style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
             >
               Part 1: MCQ ({resultSummary.mcqScore}/40)
             </button>
             <button
               onClick={() => setExamPart('id')}
               className={`btn ${examPart === 'id' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.8rem' }}
+              style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
             >
-              Part 2: Identification ({resultSummary.idScore}/30)
+              Part 2: ID ({resultSummary.idScore}/30)
             </button>
             <button
               onClick={() => setExamPart('tf')}
               className={`btn ${examPart === 'tf' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.8rem' }}
+              style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
             >
-              Part 3: True or False ({resultSummary.tfScore}/30)
+              Part 3: T/F ({resultSummary.tfScore}/30)
             </button>
             <button
               onClick={() => setExamPart('lab')}
               className={`btn ${examPart === 'lab' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.8rem' }}
+              style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
             >
               Part 4: Major SQL Lab Exam
             </button>
@@ -460,35 +474,47 @@ export default function ExamEngine({ onExamComplete }) {
           <div style={{
             display: 'flex',
             alignItems: 'center',
-            gap: '10px',
+            gap: '8px',
             flexWrap: 'wrap',
             width: '100%',
-            justifyContent: 'space-between'
+            justifyContent: 'space-between',
+            marginTop: '10px'
           }}>
-            {/* Timer */}
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              background: secondsLeft < 600 ? 'rgba(225, 29, 72, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              padding: '6px 12px',
-              borderRadius: 'var(--radius-md)',
-              border: `1px solid ${secondsLeft < 600 ? 'rgba(225,29,72,0.5)' : 'var(--border-subtle)'}`,
-              color: secondsLeft < 600 ? '#fda4af' : '#fff'
-            }}>
-              <Clock size={15} color={secondsLeft < 600 ? 'var(--pup-crimson)' : 'var(--accent-cyan)'} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.88rem' }}>
-                {formatTime(secondsLeft)}
-              </span>
+            {/* Timer & Jump Button */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: secondsLeft < 600 ? 'rgba(225, 29, 72, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                padding: '6px 10px',
+                borderRadius: 'var(--radius-md)',
+                border: `1px solid ${secondsLeft < 600 ? 'rgba(225,29,72,0.5)' : 'var(--border-subtle)'}`,
+                color: secondsLeft < 600 ? '#fda4af' : '#fff'
+              }}>
+                <Clock size={14} color={secondsLeft < 600 ? 'var(--pup-crimson)' : 'var(--accent-cyan)'} />
+                <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.84rem' }}>
+                  {formatTime(secondsLeft)}
+                </span>
+              </div>
+
+              <button
+                onClick={() => setShowJumpDrawer(!showJumpDrawer)}
+                className="btn btn-secondary"
+                style={{ padding: '6px 10px', fontSize: '0.78rem' }}
+                title="Jump directly to any of the 100 questions"
+              >
+                <span>Jump Qs</span>
+              </button>
             </div>
 
             {/* Submit button */}
             <button
               onClick={() => setShowConfirmSubmit(true)}
               className="btn btn-primary"
-              style={{ fontSize: '0.82rem', padding: '7px 14px' }}
+              style={{ fontSize: '0.8rem', padding: '6px 12px' }}
             >
-              Submit Exam ({totalAnswered}/100)
+              Submit ({totalAnswered}/100)
             </button>
           </div>
         </div>
@@ -498,14 +524,16 @@ export default function ExamEngine({ onExamComplete }) {
           display: 'flex',
           borderBottom: '1px solid var(--border-subtle)',
           overflowX: 'auto',
-          gap: '6px',
-          marginTop: '16px'
+          WebkitOverflowScrolling: 'touch',
+          gap: '4px',
+          marginTop: '14px',
+          paddingBottom: '2px'
         }}>
           {[
-            { id: 'mcq', label: `Part 1: MCQ (1-40)`, answered: answeredMcqCount, total: 40 },
-            { id: 'id', label: `Part 2: Identification (41-70)`, answered: answeredIdCount, total: 30 },
-            { id: 'tf', label: `Part 3: True or False (71-100)`, answered: answeredTfCount, total: 30 },
-            { id: 'lab', label: `Part 4: Major SQL Lab Exam`, answered: labPassed ? 1 : 0, total: 1 }
+            { id: 'mcq', labelDesktop: `Part 1: MCQ (1-40)`, labelMobile: `P1: MCQ`, answered: answeredMcqCount, total: 40 },
+            { id: 'id', labelDesktop: `Part 2: Identification (41-70)`, labelMobile: `P2: ID`, answered: answeredIdCount, total: 30 },
+            { id: 'tf', labelDesktop: `Part 3: True or False (71-100)`, labelMobile: `P3: T/F`, answered: answeredTfCount, total: 30 },
+            { id: 'lab', labelDesktop: `Part 4: Major SQL Lab Exam`, labelMobile: `P4: Lab`, answered: labPassed ? 1 : 0, total: 1 }
           ].map((part) => {
             const isActive = examPart === part.id;
             return (
@@ -515,25 +543,27 @@ export default function ExamEngine({ onExamComplete }) {
                 style={{
                   display: 'flex',
                   alignItems: 'center',
-                  gap: '8px',
+                  gap: '6px',
                   background: isActive ? 'rgba(225, 29, 72, 0.15)' : 'transparent',
                   border: 'none',
                   borderBottom: isActive ? '2px solid var(--pup-crimson)' : '2px solid transparent',
                   color: isActive ? '#fff' : 'var(--text-muted)',
-                  padding: '10px 14px',
+                  padding: '9px 12px',
                   cursor: 'pointer',
-                  fontSize: '0.82rem',
+                  fontSize: '0.8rem',
                   fontWeight: 600,
                   whiteSpace: 'nowrap',
                   borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  flexShrink: 0
                 }}
               >
-                <span>{part.label}</span>
+                <span className="desktop-only-inline">{part.labelDesktop}</span>
+                <span className="mobile-only-inline">{part.labelMobile}</span>
                 <span style={{
-                  fontSize: '0.7rem',
+                  fontSize: '0.68rem',
                   background: 'rgba(255,255,255,0.08)',
-                  padding: '2px 6px',
+                  padding: '2px 5px',
                   borderRadius: '4px',
                   color: part.answered === part.total ? 'var(--accent-emerald)' : 'var(--text-muted)'
                 }}>
@@ -543,6 +573,125 @@ export default function ExamEngine({ onExamComplete }) {
             );
           })}
         </div>
+
+        {/* Quick Question Jump Navigator Drawer */}
+        {showJumpDrawer && (
+          <div style={{
+            background: 'rgba(10, 16, 28, 0.98)',
+            border: '1px solid var(--border-subtle)',
+            borderRadius: 'var(--radius-md)',
+            padding: '14px',
+            marginTop: '12px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '10px' }}>
+              <span style={{ fontSize: '0.84rem', fontWeight: 700, color: '#fff' }}>
+                Quick Question Navigator (Tap any number to jump)
+              </span>
+              <button
+                onClick={() => setShowJumpDrawer(false)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.8rem' }}
+              >
+                Close ✕
+              </button>
+            </div>
+
+            {/* MCQ 1-40 */}
+            <div style={{ marginBottom: '10px' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--pup-gold)', fontWeight: 700, marginBottom: '5px' }}>
+                Part 1: MCQ (Questions 1 - 40)
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {EXAM_DATA.mcq.map((q) => {
+                  const isAns = mcqAnswers[q.id] !== undefined;
+                  const isFl = flagged[q.id];
+                  return (
+                    <button
+                      key={q.id}
+                      onClick={() => scrollToQuestion(q.number, 'mcq')}
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '4px',
+                        background: isFl ? 'rgba(245, 158, 11, 0.3)' : isAns ? 'rgba(16, 185, 129, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                        border: `1px solid ${isFl ? 'var(--pup-gold)' : isAns ? 'rgba(16, 185, 129, 0.5)' : 'var(--border-subtle)'}`,
+                        color: isFl ? '#fde68a' : isAns ? '#a7f3d0' : '#94a3b8',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {q.number}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ID 41-70 */}
+            <div style={{ marginBottom: '10px' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--accent-cyan)', fontWeight: 700, marginBottom: '5px' }}>
+                Part 2: Identification (Questions 41 - 70)
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {EXAM_DATA.identification.map((q) => {
+                  const isAns = (idAnswers[q.id] || '').trim().length > 0;
+                  const isFl = flagged[q.id];
+                  return (
+                    <button
+                      key={q.id}
+                      onClick={() => scrollToQuestion(q.number, 'id')}
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '4px',
+                        background: isFl ? 'rgba(245, 158, 11, 0.3)' : isAns ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                        border: `1px solid ${isFl ? 'var(--pup-gold)' : isAns ? 'rgba(56, 189, 248, 0.5)' : 'var(--border-subtle)'}`,
+                        color: isFl ? '#fde68a' : isAns ? '#bae6fd' : '#94a3b8',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {q.number}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* TF 71-100 */}
+            <div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--accent-purple)', fontWeight: 700, marginBottom: '5px' }}>
+                Part 3: True or False (Questions 71 - 100)
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                {EXAM_DATA.trueOrFalse.map((q) => {
+                  const isAns = tfAnswers[q.id] !== undefined;
+                  const isFl = flagged[q.id];
+                  return (
+                    <button
+                      key={q.id}
+                      onClick={() => scrollToQuestion(q.number, 'tf')}
+                      style={{
+                        width: '26px',
+                        height: '26px',
+                        borderRadius: '4px',
+                        background: isFl ? 'rgba(245, 158, 11, 0.3)' : isAns ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255, 255, 255, 0.05)',
+                        border: `1px solid ${isFl ? 'var(--pup-gold)' : isAns ? 'rgba(168, 85, 247, 0.5)' : 'var(--border-subtle)'}`,
+                        color: isFl ? '#fde68a' : isAns ? '#e9d5ff' : '#94a3b8',
+                        fontSize: '0.7rem',
+                        fontWeight: 700,
+                        cursor: 'pointer'
+                      }}
+                    >
+                      {q.number}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Part 1: MCQ View */}
@@ -551,14 +700,15 @@ export default function ExamEngine({ onExamComplete }) {
           {EXAM_DATA.mcq.map((q, idx) => (
             <div
               key={q.id}
+              id={`exam-q-${q.number}`}
               className="glass-card"
               style={{
-                padding: '20px',
+                padding: '16px 14px',
                 borderLeft: flagged[q.id] ? '3px solid var(--pup-gold)' : undefined
               }}
             >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '14px', gap: '10px' }}>
-                <h4 style={{ fontSize: '0.98rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px', gap: '10px' }}>
+                <h4 style={{ fontSize: '0.94rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5, wordBreak: 'break-word' }}>
                   <span style={{ color: 'var(--pup-crimson)', fontWeight: 800, marginRight: '6px' }}>
                     Q{q.number}.
                   </span>
@@ -571,7 +721,8 @@ export default function ExamEngine({ onExamComplete }) {
                     border: 'none',
                     color: flagged[q.id] ? 'var(--pup-gold)' : 'var(--text-dim)',
                     cursor: 'pointer',
-                    padding: '4px'
+                    padding: '4px',
+                    flexShrink: 0
                   }}
                   title="Flag for review"
                 >
@@ -589,17 +740,19 @@ export default function ExamEngine({ onExamComplete }) {
                       onClick={() => handleSelectMcq(q.id, optIdx)}
                       style={{
                         display: 'flex',
-                        alignItems: 'center',
-                        gap: '12px',
-                        padding: '12px 16px',
+                        alignItems: 'flex-start',
+                        gap: '10px',
+                        padding: '10px 14px',
                         borderRadius: 'var(--radius-md)',
                         background: isSelected ? 'rgba(225, 29, 72, 0.15)' : 'rgba(255, 255, 255, 0.03)',
                         border: `1px solid ${isSelected ? 'rgba(225, 29, 72, 0.6)' : 'var(--border-subtle)'}`,
                         color: isSelected ? '#fff' : '#cbd5e1',
                         textAlign: 'left',
                         cursor: 'pointer',
-                        fontSize: '0.86rem',
-                        transition: 'all 0.15s ease'
+                        fontSize: '0.84rem',
+                        transition: 'all 0.15s ease',
+                        wordBreak: 'break-word',
+                        lineHeight: 1.45
                       }}
                     >
                       <div style={{
@@ -611,9 +764,10 @@ export default function ExamEngine({ onExamComplete }) {
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        fontSize: '0.75rem',
+                        fontSize: '0.74rem',
                         fontWeight: 700,
-                        flexShrink: 0
+                        flexShrink: 0,
+                        marginTop: '1px'
                       }}>
                         {String.fromCharCode(65 + optIdx)}
                       </div>
@@ -642,7 +796,7 @@ export default function ExamEngine({ onExamComplete }) {
           </div>
 
           {EXAM_DATA.identification.map((q) => (
-            <div key={q.id} className="glass-card" style={{ padding: '20px' }}>
+            <div key={q.id} id={`exam-q-${q.number}`} className="glass-card" style={{ padding: '16px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <h4 style={{ fontSize: '0.98rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5 }}>
                   <span style={{ color: 'var(--accent-cyan)', fontWeight: 800, marginRight: '6px' }}>
@@ -689,7 +843,7 @@ export default function ExamEngine({ onExamComplete }) {
       {examPart === 'tf' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           {EXAM_DATA.trueOrFalse.map((q) => (
-            <div key={q.id} className="glass-card" style={{ padding: '20px' }}>
+            <div key={q.id} id={`exam-q-${q.number}`} className="glass-card" style={{ padding: '16px 14px' }}>
               <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
                 <h4 style={{ fontSize: '0.98rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5 }}>
                   <span style={{ color: 'var(--accent-purple)', fontWeight: 800, marginRight: '6px' }}>
@@ -846,14 +1000,24 @@ export default function ExamEngine({ onExamComplete }) {
                     XAMPP for Windows - mysql (Target Result Table)
                   </span>
                 </div>
+                <div className="mobile-only-inline" style={{
+                  fontSize: '0.72rem',
+                  color: 'var(--accent-cyan)',
+                  padding: '5px 12px',
+                  background: 'rgba(56, 189, 248, 0.08)',
+                  borderBottom: '1px solid rgba(56, 189, 248, 0.2)'
+                }}>
+                  ↔ Swipe horizontally to view all 7 columns (or toggle Interactive Grid)
+                </div>
                 <pre style={{
                   margin: 0,
-                  padding: '14px',
+                  padding: '12px 14px',
                   fontFamily: 'var(--font-mono)',
-                  fontSize: '0.77rem',
+                  fontSize: 'clamp(0.62rem, 1.8vw, 0.77rem)',
                   color: '#38bdf8',
                   lineHeight: 1.45,
-                  overflowX: 'auto'
+                  overflowX: 'auto',
+                  WebkitOverflowScrolling: 'touch'
                 }}>
                   <code>{EXAM_DATA.labExam.asciiOutput}</code>
                 </pre>
