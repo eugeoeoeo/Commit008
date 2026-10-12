@@ -88,3 +88,18 @@ export const SEED_COMMITTEES = [
   { committee_id: 3, name: "Lincoln" },
   { committee_id: 4, name: "Joe" }
 ];
+
+// Payments table (From Prof. Contreras classicmodels schema in Image 1 & 2)
+export const SEED_PAYMENTS = [
+  { customerNumber: 103, checkNumber: "JM555205", paymentDate: "2023-06-05", amount: 14571.44 },
+  { customerNumber: 103, checkNumber: "OM314933", paymentDate: "2023-10-18", amount: 1676.14 },
+  { customerNumber: 103, checkNumber: "AB661578", paymentDate: "2023-11-20", amount: 9415.13 },
+  { customerNumber: 112, checkNumber: "HQ336336", paymentDate: "2023-06-06", amount: 6066.78 },
+  { customerNumber: 112, checkNumber: "ND299001", paymentDate: "2023-08-20", amount: 32641.98 },
+  { customerNumber: 114, checkNumber: "GG31455",  paymentDate: "2023-05-20", amount: 45864.03 },
+  { customerNumber: 114, checkNumber: "MA765515", paymentDate: "2023-12-15", amount: 82261.22 },
+  { customerNumber: 119, checkNumber: "LN373720", paymentDate: "2023-08-08", amount: 47924.19 },
+  { customerNumber: 121, checkNumber: "DB933704", paymentDate: "2023-10-28", amount: 34638.14 },
+  { customerNumber: 128, checkNumber: "FA865824", paymentDate: "2023-11-03", amount: 10549.01 },
+  { customerNumber: 148, checkNumber: "KM172892", paymentDate: "2023-12-26", amount: 41016.90 }
+];

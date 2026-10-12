@@ -419,3 +419,94 @@ pre, code {
 .animate-fade-in {
   animation: fadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
+
+/* Responsive Visibility Helpers */
+.mobile-only-inline {
+  display: none;
+}
+.desktop-only-inline {
+  display: inline;
+}
+.desktop-only-flex {
+  display: flex;
+}
+.header-title-short {
+  display: none;
+}
+.header-title-full {
+  display: inline;
+}
+.header-sub-short {
+  display: none;
+}
+.header-sub-full {
+  display: inline;
+}
+
+/* Tablet & Mobile Screens (<= 768px) */
+@media (max-width: 768px) {
+  .mobile-only-inline {
+    display: inline;
+  }
+  .desktop-only-inline {
+    display: none !important;
+  }
+  .desktop-only-flex {
+    display: none !important;
+  }
+  .header-title-short {
+    display: inline;
+  }
+  .header-title-full {
+    display: none;
+  }
+  .header-sub-short {
+    display: inline;
+  }
+  .header-sub-full {
+    display: none;
+  }
+
+  .header-inner {
+    padding: 8px 12px;
+  }
+
+  .brand-wrapper {
+    gap: 8px;
+  }
+
+  .pup-logo-badge {
+    font-size: 0.72rem;
+    padding: 4px 7px;
+  }
+
+  .brand-info h1 {
+    font-size: 0.88rem;
+  }
+
+  .brand-info p {
+    font-size: 0.68rem;
+  }
+
+  .glass-card {
+    padding: 14px 14px;
+    border-radius: 12px;
+  }
+
+  .main-content {
+    padding-left: 10px;
+    padding-right: 10px;
+    padding-top: 10px;
+  }
+
+  /* Prevent mobile Safari and Chrome input auto-zoom on focus */
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+
+  /* Text overflow and word break safety on mobile */
+  p, span, h1, h2, h3, h4, li {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+}

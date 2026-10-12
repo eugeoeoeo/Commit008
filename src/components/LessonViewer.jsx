@@ -330,15 +330,17 @@ export default function LessonViewer({
           display: 'flex',
           borderBottom: '1px solid var(--border-subtle)',
           overflowX: 'auto',
-          gap: '6px',
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'none',
+          gap: '4px',
           paddingBottom: '2px'
         }}>
           {[
-            { id: 'content', label: 'Bite-Sized Lesson Content', icon: BookOpen },
-            { id: 'takeaways', label: 'Key Takeaways', icon: CheckCircle2 },
-            { id: 'tips', label: 'Exam Tips & Traps', icon: Lightbulb },
-            { id: 'quiz', label: `Quiz (${lessonQuiz.length} Items)`, icon: HelpCircle, badge: quizScore ? `${quizScore.score}/${quizScore.total}` : null },
-            { id: 'lab', label: 'Laboratory Activity', icon: Terminal, badge: isLabDone ? 'Done' : null }
+            { id: 'content', labelDesktop: 'Bite-Sized Lesson Content', labelMobile: 'Lesson', icon: BookOpen },
+            { id: 'takeaways', labelDesktop: 'Key Takeaways', labelMobile: 'Takeaways', icon: CheckCircle2 },
+            { id: 'tips', labelDesktop: 'Exam Tips & Traps', labelMobile: 'Exam Tips', icon: Lightbulb },
+            { id: 'quiz', labelDesktop: `Quiz (${lessonQuiz.length} Items)`, labelMobile: `Quiz (${lessonQuiz.length})`, icon: HelpCircle, badge: quizScore ? `${quizScore.score}/${quizScore.total}` : null },
+            { id: 'lab', labelDesktop: 'Laboratory Activity', labelMobile: 'Lab', icon: Terminal, badge: isLabDone ? 'Done' : null }
           ].map((tab) => {
             const Icon = tab.icon;
             const isActive = activeTab === tab.id;
@@ -354,20 +356,22 @@ export default function LessonViewer({
                   border: 'none',
                   borderBottom: isActive ? '2px solid var(--pup-crimson)' : '2px solid transparent',
                   color: isActive ? '#fff' : 'var(--text-muted)',
-                  padding: '10px 14px',
+                  padding: '9px 12px',
                   cursor: 'pointer',
                   fontSize: '0.82rem',
                   fontWeight: 600,
                   whiteSpace: 'nowrap',
                   borderRadius: 'var(--radius-sm) var(--radius-sm) 0 0',
-                  transition: 'all 0.2s ease'
+                  transition: 'all 0.2s ease',
+                  flexShrink: 0
                 }}
               >
                 <Icon size={15} color={isActive ? 'var(--pup-crimson)' : 'var(--text-muted)'} />
-                <span>{tab.label}</span>
+                <span className="desktop-only-inline">{tab.labelDesktop}</span>
+                <span className="mobile-only-inline">{tab.labelMobile}</span>
                 {tab.badge && (
                   <span style={{
-                    fontSize: '0.68rem',
+                    fontSize: '0.66rem',
                     background: 'rgba(255,255,255,0.1)',
                     padding: '1px 5px',
                     borderRadius: '4px',
@@ -512,7 +516,8 @@ export default function LessonViewer({
                       style={{ fontSize: '0.82rem' }}
                     >
                       <ArrowLeft size={15} />
-                      <span>Previous: {sections[currentPartIndex - 1].title}</span>
+                      <span>Prev Part</span>
+                      <span className="desktop-only-inline">: {sections[currentPartIndex - 1].title}</span>
                     </button>
                   ) : <div />}
 
@@ -525,7 +530,8 @@ export default function LessonViewer({
                       className="btn btn-primary"
                       style={{ fontSize: '0.82rem' }}
                     >
-                      <span>Proceed to Part {currentPartIndex + 2}: {sections[currentPartIndex + 1].title}</span>
+                      <span>Proceed to Part {currentPartIndex + 2}</span>
+                      <span className="desktop-only-inline">: {sections[currentPartIndex + 1].title}</span>
                       <ArrowRight size={15} />
                     </button>
                   ) : (
@@ -693,7 +699,8 @@ export default function LessonViewer({
             style={{ fontSize: '0.82rem' }}
           >
             <ChevronLeft size={16} />
-            <span>Prev Lesson: {prevLesson.title}</span>
+            <span>Prev Lesson</span>
+            <span className="desktop-only-inline">: {prevLesson.title}</span>
           </button>
         ) : <div />}
 
@@ -703,7 +710,8 @@ export default function LessonViewer({
             className="btn btn-secondary"
             style={{ fontSize: '0.82rem' }}
           >
-            <span>Next Lesson: {nextLesson.title}</span>
+            <span>Next Lesson</span>
+            <span className="desktop-only-inline">: {nextLesson.title}</span>
             <ChevronRight size={16} />
           </button>
         )}

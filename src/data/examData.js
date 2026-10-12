@@ -1080,15 +1080,14 @@ export const EXAM_DATA = {
         { from: "products.productLine", to: "productlines.productLine", type: "Many-to-One" }
       ]
     },
+    scenario: "See the following six tables: offices, employees, customers, payments, orders, and orderdetails.",
     instructions: [
-      "Query must retrieve exactly 7 columns in this order: customerName, country, orderNumber, status, salesRepLastName, officeCity, and officeCountry.",
-      "Must include all customers regardless of whether they currently have placed an order (must use LEFT JOIN).",
-      "Must link the customer's sales representative and their corresponding office.",
-      "Must filter to include only customers whose country is either 'USA' or 'France'.",
-      "Must sort results by customerName ascending, and then by orderNumber descending.",
-      "Avoid syntax errors; do not rely on hints."
+      "Write a SQL query that produces the exact sample output shown below.",
+      "You will use: LEFT JOIN, INNER JOIN, WHERE, and ORDER BY.",
+      "The result set must contain exactly 7 columns in order: customerName, country, orderNumber, status, salesRepLastName, officeCity, and officeCountry.",
+      "Strict grading is enforced against the exact target dataset. No hints or solutions are provided."
     ],
-    requiredClauses: ["LEFT JOIN", "WHERE", "ORDER BY"],
+    requiredClauses: ["LEFT JOIN", "INNER JOIN", "WHERE", "ORDER BY"],
     requiredColumns: [
       "customerName",
       "country",
@@ -1098,6 +1097,20 @@ export const EXAM_DATA = {
       "officeCity",
       "officeCountry"
     ],
+    asciiOutput: `+------------------------------+---------+-------------+---------+------------------+---------------+---------------+
+| customerName                 | country | orderNumber | status  | salesRepLastName | officeCity    | officeCountry |
++------------------------------+---------+-------------+---------+------------------+---------------+---------------+
+| Atelier graphique            | France  | 10298       | Shipped | Hernandez        | Paris         | France        |
+| Atelier graphique            | France  | 10123       | Shipped | Hernandez        | Paris         | France        |
+| La Rochelle Gifts            | France  | 10275       | Shipped | Hernandez        | Paris         | France        |
+| Land of Toys Inc.            | USA     | NULL        | NULL    | Vanauf           | NYC           | USA           |
+| Mini Caravy                  | France  | 10103       | Shipped | Hernandez        | Paris         | France        |
+| Mini Gifts Distributors Ltd. | USA     | NULL        | NULL    | Jennings         | San Francisco | USA           |
+| Signal Gift Stores           | USA     | 10278       | Shipped | Jennings         | San Francisco | USA           |
+| Signal Gift Stores           | USA     | 10124       | Shipped | Jennings         | San Francisco | USA           |
+| Vitachrome Inc.              | USA     | 10324       | Shipped | Patterson        | Boston        | USA           |
++------------------------------+---------+-------------+---------+------------------+---------------+---------------+
+9 rows in set (0.01 sec)`,
     sampleOutputGrid: [
       {
         customerName: "Atelier graphique",
@@ -1191,8 +1204,8 @@ export const EXAM_DATA = {
   off.country AS officeCountry
 FROM customers c
 LEFT JOIN orders o ON c.customerNumber = o.customerNumber
-LEFT JOIN employees e ON c.salesRepEmployeeNumber = e.employeeNumber
-LEFT JOIN offices off ON e.officeCode = off.officeCode
+INNER JOIN employees e ON c.salesRepEmployeeNumber = e.employeeNumber
+INNER JOIN offices off ON e.officeCode = off.officeCode
 WHERE c.country = 'USA' OR c.country = 'France'
 ORDER BY c.customerName ASC, o.orderNumber DESC;`
   }

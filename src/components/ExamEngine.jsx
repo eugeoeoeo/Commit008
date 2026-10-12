@@ -31,6 +31,7 @@ export default function ExamEngine({ onExamComplete }) {
   const [tfAnswers, setTfAnswers] = useState({});   // { [id]: boolean }
   const [flagged, setFlagged] = useState({});       // { [id]: boolean }
   const [labPassed, setLabPassed] = useState(false);
+  const [sampleOutputView, setSampleOutputView] = useState('terminal'); // 'terminal' | 'grid'
 
   // Timer
   const [secondsLeft, setSecondsLeft] = useState(90 * 60); // 90 minutes
@@ -416,7 +417,7 @@ export default function ExamEngine({ onExamComplete }) {
                     instructions: EXAM_DATA.labExam.instructions,
                     requiredClauses: EXAM_DATA.labExam.requiredClauses,
                     expectedOutput: EXAM_DATA.labExam.sampleOutputGrid,
-                    starterSql: "SELECT \n  c.customerName,\n  c.country,\n  o.orderNumber,\n  o.status,\n  e.lastName AS salesRepLastName,\n  off.city AS officeCity,\n  off.country AS officeCountry\nFROM customers c\n"
+                    starterSql: EXAM_DATA.labExam.canonicalQuery
                   }}
                 />
               </div>
@@ -456,20 +457,27 @@ export default function ExamEngine({ onExamComplete }) {
             </p>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            flexWrap: 'wrap',
+            width: '100%',
+            justifyContent: 'space-between'
+          }}>
             {/* Timer */}
             <div style={{
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
               background: secondsLeft < 600 ? 'rgba(225, 29, 72, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-              padding: '8px 14px',
+              padding: '6px 12px',
               borderRadius: 'var(--radius-md)',
               border: `1px solid ${secondsLeft < 600 ? 'rgba(225,29,72,0.5)' : 'var(--border-subtle)'}`,
               color: secondsLeft < 600 ? '#fda4af' : '#fff'
             }}>
-              <Clock size={16} color={secondsLeft < 600 ? 'var(--pup-crimson)' : 'var(--accent-cyan)'} />
-              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.95rem' }}>
+              <Clock size={15} color={secondsLeft < 600 ? 'var(--pup-crimson)' : 'var(--accent-cyan)'} />
+              <span style={{ fontFamily: 'var(--font-mono)', fontWeight: 700, fontSize: '0.88rem' }}>
                 {formatTime(secondsLeft)}
               </span>
             </div>
@@ -478,7 +486,7 @@ export default function ExamEngine({ onExamComplete }) {
             <button
               onClick={() => setShowConfirmSubmit(true)}
               className="btn btn-primary"
-              style={{ fontSize: '0.85rem' }}
+              style={{ fontSize: '0.82rem', padding: '7px 14px' }}
             >
               Submit Exam ({totalAnswered}/100)
             </button>
@@ -668,7 +676,7 @@ export default function ExamEngine({ onExamComplete }) {
                   padding: '12px 16px',
                   color: '#fff',
                   fontFamily: 'var(--font-sans)',
-                  fontSize: '0.9rem',
+                  fontSize: '16px',
                   outline: 'none'
                 }}
               />
@@ -748,59 +756,153 @@ export default function ExamEngine({ onExamComplete }) {
           {/* ERD Diagram with 6 Tables and Connection Lines */}
           <ErdViewer />
 
-          {/* Target Sample Output Table (6-8 Columns) */}
+          {/* Target Sample Output Table (6-8 Columns) matching Prof. Contreras Image 2 */}
           <div className="glass-card" style={{ padding: '20px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              marginBottom: '14px',
+              flexWrap: 'wrap',
+              gap: '10px'
+            }}>
               <div>
-                <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff' }}>
-                  Required Sample Output Grid (7 Columns)
-                </h3>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 700, color: '#fff' }}>
+                    Required Sample Output (7 Columns)
+                  </h3>
+                  <span className="badge badge-gold" style={{ fontSize: '0.7rem' }}>
+                    NO HINTS PROVIDED
+                  </span>
+                </div>
                 <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                  Your SQL query output must match these exact 7 columns and filtered records:
+                  Your SQL query must produce this exact dataset. You must use: <strong style={{ color: '#fff' }}>LEFT JOIN</strong>, <strong style={{ color: '#fff' }}>INNER JOIN</strong>, <strong style={{ color: '#fff' }}>WHERE</strong>, and <strong style={{ color: '#fff' }}>ORDER BY</strong>.
                 </p>
               </div>
-              <span className="badge badge-gold" style={{ fontSize: '0.72rem' }}>
-                NO HINTS PROVIDED
-              </span>
+
+              {/* Toggle view: MySQL Console vs Table Grid */}
+              <div style={{
+                display: 'flex',
+                background: 'rgba(255, 255, 255, 0.05)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '2px',
+                border: '1px solid var(--border-subtle)'
+              }}>
+                <button
+                  onClick={() => setSampleOutputView('terminal')}
+                  style={{
+                    background: sampleOutputView === 'terminal' ? 'var(--pup-crimson)' : 'transparent',
+                    border: 'none',
+                    color: '#fff',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  MySQL Terminal Output
+                </button>
+                <button
+                  onClick={() => setSampleOutputView('grid')}
+                  style={{
+                    background: sampleOutputView === 'grid' ? 'var(--pup-crimson)' : 'transparent',
+                    border: 'none',
+                    color: '#fff',
+                    fontSize: '0.72rem',
+                    fontWeight: 600,
+                    padding: '4px 10px',
+                    borderRadius: '4px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Interactive Grid
+                </button>
+              </div>
             </div>
 
-            <div style={{
-              overflowX: 'auto',
-              borderRadius: 'var(--radius-md)',
-              border: '1px solid var(--border-subtle)',
-              background: '#070b16'
-            }}>
-              <table style={{
-                width: '100%',
-                borderCollapse: 'collapse',
-                fontSize: '0.8rem',
-                fontFamily: 'var(--font-mono)'
+            {/* Display Mode 1: Exact MySQL Console ASCII format as shown on Prof's Screen (Image 2) */}
+            {sampleOutputView === 'terminal' ? (
+              <div style={{
+                background: '#04070f',
+                border: '1px solid rgba(56, 189, 248, 0.25)',
+                borderRadius: 'var(--radius-md)',
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.6)'
               }}>
-                <thead>
-                  <tr style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
-                    {EXAM_DATA.labExam.requiredColumns.map((col, idx) => (
-                      <th key={idx} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--accent-cyan)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
-                        {col}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {EXAM_DATA.labExam.sampleOutputGrid.map((row, rIdx) => (
-                    <tr key={rIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                      {EXAM_DATA.labExam.requiredColumns.map((col, cIdx) => (
-                        <td key={cIdx} style={{ padding: '6px 12px', color: '#e2e8f0', whiteSpace: 'nowrap' }}>
-                          {row[col]}
-                        </td>
+                <div style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  background: 'rgba(255, 255, 255, 0.04)',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
+                  padding: '7px 12px'
+                }}>
+                  <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#ef4444', display: 'inline-block' }}></span>
+                  <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#f59e0b', display: 'inline-block' }}></span>
+                  <span style={{ width: '9px', height: '9px', borderRadius: '50%', background: '#10b981', display: 'inline-block' }}></span>
+                  <span style={{ fontSize: '0.73rem', fontFamily: 'var(--font-mono)', color: 'var(--text-muted)', marginLeft: '6px' }}>
+                    XAMPP for Windows - mysql (Target Result Table)
+                  </span>
+                </div>
+                <pre style={{
+                  margin: 0,
+                  padding: '14px',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: '0.77rem',
+                  color: '#38bdf8',
+                  lineHeight: 1.45,
+                  overflowX: 'auto'
+                }}>
+                  <code>{EXAM_DATA.labExam.asciiOutput}</code>
+                </pre>
+              </div>
+            ) : (
+              /* Display Mode 2: HTML Table Grid */
+              <div style={{
+                overflowX: 'auto',
+                WebkitOverflowScrolling: 'touch',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--border-subtle)',
+                background: '#070b16'
+              }}>
+                <table style={{
+                  width: '100%',
+                  borderCollapse: 'collapse',
+                  fontSize: '0.8rem',
+                  fontFamily: 'var(--font-mono)'
+                }}>
+                  <thead>
+                    <tr style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
+                      {EXAM_DATA.labExam.requiredColumns.map((col, idx) => (
+                        <th key={idx} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--accent-cyan)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
+                          {col}
+                        </th>
                       ))}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {EXAM_DATA.labExam.sampleOutputGrid.map((row, rIdx) => (
+                      <tr key={rIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                        {EXAM_DATA.labExam.requiredColumns.map((col, cIdx) => (
+                          <td key={cIdx} style={{ padding: '6px 12px', color: '#e2e8f0', whiteSpace: 'nowrap' }}>
+                            {row[col] === null ? (
+                              <span style={{ color: 'var(--pup-gold)', fontStyle: 'italic' }}>NULL</span>
+                            ) : (
+                              row[col]
+                            )}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
 
-          {/* Interactive Console for Lab Exam */}
+          {/* Interactive Console for Lab Exam with STRICTLY NO HINTS */}
           <LabConsole
             labActivity={{
               title: EXAM_DATA.labExam.title,
@@ -808,7 +910,7 @@ export default function ExamEngine({ onExamComplete }) {
               instructions: EXAM_DATA.labExam.instructions,
               requiredClauses: EXAM_DATA.labExam.requiredClauses,
               expectedOutput: EXAM_DATA.labExam.sampleOutputGrid,
-              starterSql: `-- Type your examination SQL query below\n-- Remember: No hints are provided. Use required clauses and match the sample output.\nSELECT \n  c.customerName,\n  c.country,\n  o.orderNumber,\n  o.status,\n  e.lastName AS salesRepLastName,\n  off.city AS officeCity,\n  off.country AS officeCountry\nFROM customers c\n`
+              starterSql: `-- Type your examination SQL query below\n-- Strictly NO hints are provided. Use required clauses to produce the target output.\n`
             }}
             onLabPassed={() => setLabPassed(true)}
           />

@@ -5,7 +5,7 @@ export default function BottomNav({ activeTab, setActiveTab, completionPercentag
   const navItems = [
     { id: 'home', label: 'Home', icon: Home },
     { id: 'lessons', label: 'Lessons', icon: BookOpen },
-    { id: 'exam', label: '100-Item Exam', icon: GraduationCap, badge: 'Midterms' },
+    { id: 'exam', label: 'Exam', icon: GraduationCap, badge: '100Q' },
     { id: 'lab', label: 'SQL Lab', icon: Terminal },
     { id: 'progress', label: 'Analytics', icon: BarChart2 }
   ];

@@ -156,7 +156,7 @@ export default function HomeView({
           </span>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: '16px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(280px, 100%), 1fr))', gap: '14px' }}>
           {MODULES_DATA.map((module) => {
             const completedInMod = module.lessons.filter((l) => userProgress?.completedLessons?.[l.id]).length;
 

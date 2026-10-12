@@ -175,7 +175,7 @@ export default function LabConsole({
             background: '#080d19',
             color: '#38bdf8',
             fontFamily: 'var(--font-mono)',
-            fontSize: '0.9rem',
+            fontSize: '16px',
             padding: '14px',
             borderRadius: 'var(--radius-md)',
             border: '1px solid rgba(255, 255, 255, 0.12)',
@@ -193,7 +193,7 @@ export default function LabConsole({
           id="btn-execute-sql"
           onClick={handleExecute}
           className="btn btn-secondary"
-          style={{ flex: 1, minWidth: '140px' }}
+          style={{ flex: 1, minWidth: '130px' }}
         >
           <Play size={16} color="var(--accent-cyan)" />
           <span>Execute Query</span>
@@ -204,7 +204,7 @@ export default function LabConsole({
             id="btn-verify-lab"
             onClick={handleVerify}
             className="btn btn-primary"
-            style={{ flex: 1, minWidth: '160px' }}
+            style={{ flex: 1, minWidth: '150px' }}
           >
             <CheckCircle size={16} />
             <span>Verify & Grade Solution</span>
@@ -271,6 +271,7 @@ export default function LabConsole({
           ) : result.columns && result.columns.length > 0 ? (
             <div style={{
               overflowX: 'auto',
+              WebkitOverflowScrolling: 'touch',
               maxHeight: '320px',
               borderRadius: 'var(--radius-md)',
               border: '1px solid var(--border-subtle)',

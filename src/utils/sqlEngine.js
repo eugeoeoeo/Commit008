@@ -8,7 +8,8 @@ import {
   SEED_PRODUCTS,
   SEED_ORDERDETAILS,
   SEED_MEMBERS,
-  SEED_COMMITTEES
+  SEED_COMMITTEES,
+  SEED_PAYMENTS
 } from '../data/databaseSchemas.js';
 
 let initialized = false;
@@ -36,6 +37,10 @@ export function initializeDatabase() {
     alasql('DROP TABLE IF EXISTS orders');
     alasql('CREATE TABLE orders (orderNumber INT, orderDate STRING, status STRING, customerNumber INT)');
     alasql.tables.orders.data = JSON.parse(JSON.stringify(SEED_ORDERS));
+
+    alasql('DROP TABLE IF EXISTS payments');
+    alasql('CREATE TABLE payments (customerNumber INT, checkNumber STRING, paymentDate STRING, amount FLOAT)');
+    alasql.tables.payments.data = JSON.parse(JSON.stringify(SEED_PAYMENTS));
 
     alasql('DROP TABLE IF EXISTS productlines');
     alasql('CREATE TABLE productlines (productLine STRING, textDescription STRING)');

@@ -36,16 +36,16 @@ export default function Header({
             PUP CCIS
           </div>
           <div className="brand-info">
-            <h1 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span>Database Administration</span>
-              <span className="badge badge-crimson" style={{ fontSize: '0.68rem', padding: '2px 8px' }}>
+            <h1 style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <span className="header-title-full">Database Administration</span>
+              <span className="header-title-short">DB Administration</span>
+              <span className="badge badge-crimson" style={{ fontSize: '0.65rem', padding: '1px 6px' }}>
                 COMP 008
               </span>
             </h1>
             <p style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <span>Prof. Florencio V. Contreras Jr.</span>
-              <span>•</span>
-              <span style={{ color: 'var(--pup-gold)' }}>BSIT Midterm Reviewer</span>
+              <span className="header-sub-full">Prof. Florencio V. Contreras Jr. • BSIT Midterms</span>
+              <span className="header-sub-short">BSIT Midterm Reviewer</span>
             </p>
           </div>
         </div>
@@ -85,11 +85,11 @@ export default function Header({
         </nav>
 
         {/* Right Info: Device Local Storage & Progress Pill */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
           <div
+            className="desktop-only-flex"
             title="Your progress is automatically saved exclusively in this device's browser local storage."
             style={{
-              display: 'flex',
               alignItems: 'center',
               gap: '6px',
               fontSize: '0.72rem',
@@ -101,7 +101,7 @@ export default function Header({
             }}
           >
             <HardDrive size={13} color="var(--accent-cyan)" />
-            <span style={{ display: 'none' }} className="hide-on-mobile-inline">Device Saved</span>
+            <span>Device Saved</span>
           </div>
 
           <div
@@ -110,17 +110,18 @@ export default function Header({
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '8px',
+              gap: '6px',
               background: 'rgba(255, 255, 255, 0.05)',
-              padding: '6px 12px',
+              padding: '5px 10px',
               borderRadius: 'var(--radius-full)',
               border: '1px solid var(--border-subtle)',
               cursor: 'pointer',
-              transition: 'all 0.2s ease'
+              transition: 'all 0.2s ease',
+              flexShrink: 0
             }}
           >
-            <Award size={16} color="var(--pup-gold)" />
-            <span style={{ fontSize: '0.82rem', fontWeight: 700, color: '#fff' }}>
+            <Award size={15} color="var(--pup-gold)" />
+            <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#fff' }}>
               {percentage}%
             </span>
           </div>
