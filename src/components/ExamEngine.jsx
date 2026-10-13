@@ -13,48 +13,131 @@ import {
   Terminal,
   Database,
   Eye,
-  AlertTriangle
+  AlertTriangle,
+  Filter,
+  Check,
+  X,
+  Send
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
-import { EXAM_DATA } from '../data/examData.js';
+import { EXAM_POOL, generateExamSession, EXAM_DATA } from '../data/examData.js';
 import ErdViewer from './ErdViewer.jsx';
 import LabConsole from './LabConsole.jsx';
-import { saveExamAttempt } from '../utils/storage.js';
+import {
+  saveExamAttempt,
+  loadActiveExamSession,
+  saveActiveExamSession,
+  clearActiveExamSession
+} from '../utils/storage.js';
 
 export default function ExamEngine({ onExamComplete }) {
-  const [examPart, setExamPart] = useState('mcq'); // 'mcq' | 'id' | 'tf' | 'lab'
-  const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
+  // Initialize Active 100-Item Exam from LocalStorage or generate fresh from 205-item pool
+  const [activeExam, setActiveExam] = useState(() => {
+    const saved = loadActiveExamSession();
+    if (saved && saved.activeExam && saved.activeExam.mcq) {
+      return saved.activeExam;
+    }
+    const fresh = generateExamSession(false);
+    return fresh;
+  });
+
+  const [examPart, setExamPart] = useState(() => {
+    const saved = loadActiveExamSession();
+    return saved?.examPart || 'mcq'; // 'mcq' | 'id' | 'tf' | 'lab'
+  });
+
   const [showJumpDrawer, setShowJumpDrawer] = useState(false);
 
   // User state
-  const [mcqAnswers, setMcqAnswers] = useState({}); // { [id]: selectedIdx }
-  const [idAnswers, setIdAnswers] = useState({});   // { [id]: userText }
-  const [tfAnswers, setTfAnswers] = useState({});   // { [id]: boolean }
-  const [flagged, setFlagged] = useState({});       // { [id]: boolean }
-  const [labPassed, setLabPassed] = useState(false);
+  const [mcqAnswers, setMcqAnswers] = useState(() => {
+    const saved = loadActiveExamSession();
+    return saved?.mcqAnswers || {};
+  });
+
+  const [idAnswers, setIdAnswers] = useState(() => {
+    const saved = loadActiveExamSession();
+    return saved?.idAnswers || {};
+  });
+
+  const [idEvaluated, setIdEvaluated] = useState(() => {
+    const saved = loadActiveExamSession();
+    return saved?.idEvaluated || {}; // { [id]: { checked: boolean, isMatch: boolean, submittedText: string } }
+  });
+
+  const [tfAnswers, setTfAnswers] = useState(() => {
+    const saved = loadActiveExamSession();
+    return saved?.tfAnswers || {};
+  });
+
+  const [flagged, setFlagged] = useState(() => {
+    const saved = loadActiveExamSession();
+    return saved?.flagged || {};
+  });
+
+  const [labPassed, setLabPassed] = useState(() => {
+    const saved = loadActiveExamSession();
+    return saved?.labPassed || false;
+  });
+
   const [sampleOutputView, setSampleOutputView] = useState('terminal'); // 'terminal' | 'grid'
 
-  const scrollToQuestion = (qNum, part) => {
-    if (part && part !== examPart) {
-      setExamPart(part);
-    }
-    setShowJumpDrawer(false);
-    setTimeout(() => {
-      const el = document.getElementById(`exam-q-${qNum}`);
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 100);
-  };
+  // Timer: 90 minutes
+  const [secondsLeft, setSecondsLeft] = useState(() => {
+    const saved = loadActiveExamSession();
+    return typeof saved?.secondsLeft === 'number' ? saved.secondsLeft : 90 * 60;
+  });
 
-  // Timer
-  const [secondsLeft, setSecondsLeft] = useState(90 * 60); // 90 minutes
-  const [isTimerRunning, setIsTimerRunning] = useState(true);
+  const [isTimerRunning, setIsTimerRunning] = useState(() => {
+    const saved = loadActiveExamSession();
+    return saved?.isSubmitted ? false : true;
+  });
 
-  // Submission & Results
-  const [isSubmitted, setIsSubmitted] = useState(false);
-  const [resultSummary, setResultSummary] = useState(null);
+  // Submission & Results State
+  const [isSubmitted, setIsSubmitted] = useState(() => {
+    const saved = loadActiveExamSession();
+    return saved?.isSubmitted || false;
+  });
+
+  const [resultSummary, setResultSummary] = useState(() => {
+    const saved = loadActiveExamSession();
+    return saved?.resultSummary || null;
+  });
+
   const [showConfirmSubmit, setShowConfirmSubmit] = useState(false);
+
+  // Review Navigation Filter: 'all' | 'wrong' | 'correct' | 'flagged'
+  const [reviewFilter, setReviewFilter] = useState('all');
+  const [reviewPartFilter, setReviewPartFilter] = useState('all'); // 'all' | 'mcq' | 'id' | 'tf' | 'lab'
+
+  // Persist exam session to LocalStorage on state updates
+  useEffect(() => {
+    const sessionState = {
+      activeExam,
+      examPart,
+      mcqAnswers,
+      idAnswers,
+      idEvaluated,
+      tfAnswers,
+      flagged,
+      labPassed,
+      secondsLeft,
+      isSubmitted,
+      resultSummary
+    };
+    saveActiveExamSession(sessionState);
+  }, [
+    activeExam,
+    examPart,
+    mcqAnswers,
+    idAnswers,
+    idEvaluated,
+    tfAnswers,
+    flagged,
+    labPassed,
+    secondsLeft,
+    isSubmitted,
+    resultSummary
+  ]);
 
   // Countdown timer
   useEffect(() => {
@@ -78,25 +161,59 @@ export default function ExamEngine({ onExamComplete }) {
     return `${m}:${s < 10 ? '0' : ''}${s}`;
   };
 
+  const scrollToQuestion = (qNum, part) => {
+    if (part && part !== examPart) {
+      setExamPart(part);
+    }
+    setShowJumpDrawer(false);
+    setTimeout(() => {
+      const el = document.getElementById(`exam-q-${qNum}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  };
+
+  // Immediate Per-Click MCQ Handler
   const handleSelectMcq = (qId, optionIdx) => {
     if (isSubmitted) return;
-    setMcqAnswers({ ...mcqAnswers, [qId]: optionIdx });
+    setMcqAnswers((prev) => ({ ...prev, [qId]: optionIdx }));
   };
 
+  // Identification typing & submit handler
   const handleInputId = (qId, text) => {
     if (isSubmitted) return;
-    setIdAnswers({ ...idAnswers, [qId]: text });
+    setIdAnswers((prev) => ({ ...prev, [qId]: text }));
   };
 
+  const handleCheckIdAnswer = (q) => {
+    if (isSubmitted) return;
+    const userText = (idAnswers[q.id] || '').trim().toLowerCase();
+    if (!userText) return;
+    const isMatch = q.acceptedAnswers.some(
+      (ans) => ans.toLowerCase().trim() === userText
+    );
+    setIdEvaluated((prev) => ({
+      ...prev,
+      [q.id]: {
+        checked: true,
+        isMatch,
+        submittedText: (idAnswers[q.id] || '').trim()
+      }
+    }));
+  };
+
+  // Immediate Per-Click True or False Handler
   const handleSelectTf = (qId, val) => {
     if (isSubmitted) return;
-    setTfAnswers({ ...tfAnswers, [qId]: val });
+    setTfAnswers((prev) => ({ ...prev, [qId]: val }));
   };
 
   const toggleFlag = (id) => {
-    setFlagged({ ...flagged, [id]: !flagged[id] });
+    setFlagged((prev) => ({ ...prev, [id]: !prev[id] }));
   };
 
+  // Submit Examination Handler
   const handleSubmitExam = () => {
     setShowConfirmSubmit(false);
     setIsTimerRunning(false);
@@ -104,13 +221,13 @@ export default function ExamEngine({ onExamComplete }) {
 
     // Calculate MCQ score (out of 40)
     let mcqScore = 0;
-    EXAM_DATA.mcq.forEach((q) => {
+    activeExam.mcq.forEach((q) => {
       if (mcqAnswers[q.id] === q.correctAnswer) mcqScore++;
     });
 
     // Calculate Identification score (out of 30)
     let idScore = 0;
-    EXAM_DATA.identification.forEach((q) => {
+    activeExam.identification.forEach((q) => {
       const userText = (idAnswers[q.id] || '').trim().toLowerCase();
       if (!userText) return;
       const isMatch = q.acceptedAnswers.some(
@@ -121,7 +238,7 @@ export default function ExamEngine({ onExamComplete }) {
 
     // Calculate True/False score (out of 30)
     let tfScore = 0;
-    EXAM_DATA.trueOrFalse.forEach((q) => {
+    activeExam.trueOrFalse.forEach((q) => {
       if (tfAnswers[q.id] === q.correctAnswer) tfScore++;
     });
 
@@ -144,8 +261,8 @@ export default function ExamEngine({ onExamComplete }) {
     if (passed) {
       try {
         confetti({
-          particleCount: 120,
-          spread: 80,
+          particleCount: 130,
+          spread: 85,
           origin: { y: 0.5 }
         });
       } catch (e) {}
@@ -155,9 +272,14 @@ export default function ExamEngine({ onExamComplete }) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Retake Examination: Shuffles brand new 100 questions from 205-item pool and re-shuffles all choices!
   const handleRetake = () => {
+    clearActiveExamSession();
+    const freshSession = generateExamSession(false);
+    setActiveExam(freshSession);
     setMcqAnswers({});
     setIdAnswers({});
+    setIdEvaluated({});
     setTfAnswers({});
     setFlagged({});
     setLabPassed(false);
@@ -165,287 +287,482 @@ export default function ExamEngine({ onExamComplete }) {
     setIsTimerRunning(true);
     setIsSubmitted(false);
     setResultSummary(null);
-    setCurrentQuestionIndex(0);
     setExamPart('mcq');
+    setReviewFilter('all');
+    setReviewPartFilter('all');
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Answered count calculation
+  // Answered counts
   const answeredMcqCount = Object.keys(mcqAnswers).length;
-  const answeredIdCount = Object.values(idAnswers).filter((t) => t.trim().length > 0).length;
+  const answeredIdCount = Object.values(idAnswers).filter((t) => (t || '').trim().length > 0).length;
   const answeredTfCount = Object.keys(tfAnswers).length;
   const totalAnswered = answeredMcqCount + answeredIdCount + answeredTfCount;
 
-  // Render Submitted Summary Screen
+  // Compute breakdown of correct vs wrong for result review
+  const computeItemStatus = (q, type) => {
+    if (type === 'mcq') {
+      const userAns = mcqAnswers[q.id];
+      if (userAns === undefined) return { isAnswered: false, isCorrect: false };
+      return { isAnswered: true, isCorrect: userAns === q.correctAnswer };
+    }
+    if (type === 'id') {
+      const userText = (idAnswers[q.id] || '').trim().toLowerCase();
+      if (!userText) return { isAnswered: false, isCorrect: false };
+      const isMatch = q.acceptedAnswers.some(
+        (ans) => ans.toLowerCase().trim() === userText
+      );
+      return { isAnswered: true, isCorrect: isMatch };
+    }
+    if (type === 'tf') {
+      const userAns = tfAnswers[q.id];
+      if (userAns === undefined) return { isAnswered: false, isCorrect: false };
+      return { isAnswered: true, isCorrect: userAns === q.correctAnswer };
+    }
+    return { isAnswered: false, isCorrect: false };
+  };
+
+  const allQuestionsWithStatus = [
+    ...activeExam.mcq.map((q) => ({ ...q, type: 'mcq', ...computeItemStatus(q, 'mcq') })),
+    ...activeExam.identification.map((q) => ({ ...q, type: 'id', ...computeItemStatus(q, 'id') })),
+    ...activeExam.trueOrFalse.map((q) => ({ ...q, type: 'tf', ...computeItemStatus(q, 'tf') }))
+  ];
+
+  const totalWrongCount = allQuestionsWithStatus.filter((q) => !q.isCorrect).length;
+  const totalCorrectCount = allQuestionsWithStatus.filter((q) => q.isCorrect).length;
+  const totalFlaggedCount = Object.values(flagged).filter(Boolean).length;
+
+  // Filtered review list based on student's filter selection
+  const filteredReviewQuestions = allQuestionsWithStatus.filter((q) => {
+    // 1. Status Filter
+    if (reviewFilter === 'wrong' && q.isCorrect) return false;
+    if (reviewFilter === 'correct' && !q.isCorrect) return false;
+    if (reviewFilter === 'flagged' && !flagged[q.id]) return false;
+
+    // 2. Part Filter
+    if (reviewPartFilter !== 'all' && q.type !== reviewPartFilter) return false;
+
+    return true;
+  });
+
+  // ==========================================
+  // RENDER: COMPLETED RESULTS & SEPARATED REVIEW
+  // ==========================================
   if (isSubmitted && resultSummary) {
     return (
-      <div className="glass-card animate-fade-in" style={{ padding: '30px' }}>
-        <div style={{ textAlign: 'center', marginBottom: '28px' }}>
+      <div className="glass-card animate-fade-in" style={{ padding: '24px 20px' }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
           <div style={{
             display: 'inline-flex',
-            padding: '20px',
+            padding: '18px',
             borderRadius: '50%',
             background: resultSummary.passed ? 'rgba(16, 185, 129, 0.15)' : 'rgba(225, 29, 72, 0.15)',
             color: resultSummary.passed ? 'var(--accent-emerald)' : 'var(--pup-crimson)',
-            marginBottom: '16px'
+            marginBottom: '14px'
           }}>
-            <Award size={56} />
+            <Award size={52} />
           </div>
-          <h2 style={{ fontSize: '1.6rem', fontWeight: 800, color: '#fff', marginBottom: '8px' }}>
+          <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#fff', marginBottom: '6px' }}>
             {resultSummary.passed ? 'Midterm Examination Passed!' : 'Examination Needs Further Review'}
           </h2>
-          <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem' }}>
+          <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
             Polytechnic University of the Philippines • COMP 008 Database Administration
           </p>
 
+          {/* Score Cards */}
           <div style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-            gap: '16px',
-            marginTop: '24px',
-            marginBottom: '24px'
+            gridTemplateColumns: 'repeat(auto-fit, minmax(170px, 1fr))',
+            gap: '14px',
+            marginTop: '20px',
+            marginBottom: '20px'
           }}>
             <div style={{
               background: 'rgba(255, 255, 255, 0.04)',
-              padding: '18px',
+              padding: '16px',
               borderRadius: 'var(--radius-lg)',
               border: '1px solid var(--border-subtle)'
             }}>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>TOTAL THEORETICAL SCORE</div>
-              <div style={{ fontSize: '2.4rem', fontWeight: 800, color: resultSummary.passed ? 'var(--accent-emerald)' : 'var(--pup-crimson)' }}>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>TOTAL THEORETICAL SCORE</div>
+              <div style={{ fontSize: '2.2rem', fontWeight: 800, color: resultSummary.passed ? 'var(--accent-emerald)' : 'var(--pup-crimson)' }}>
                 {resultSummary.totalScore} / 100
               </div>
-              <div style={{ fontSize: '0.8rem', color: resultSummary.passed ? '#a7f3d0' : '#fda4af', fontWeight: 600 }}>
+              <div style={{ fontSize: '0.78rem', color: resultSummary.passed ? '#a7f3d0' : '#fda4af', fontWeight: 600 }}>
                 {resultSummary.totalScore}% ({resultSummary.passed ? 'PASSED' : 'FAILED - 75% required'})
               </div>
             </div>
 
             <div style={{
               background: 'rgba(255, 255, 255, 0.04)',
-              padding: '18px',
+              padding: '16px',
               borderRadius: 'var(--radius-lg)',
               border: '1px solid var(--border-subtle)'
             }}>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>PART 1: MCQ (40 ITEMS)</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--pup-gold)' }}>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>PART 1: MCQ (40 ITEMS)</div>
+              <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--pup-gold)' }}>
                 {resultSummary.mcqScore} / 40
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>
                 {Math.round((resultSummary.mcqScore / 40) * 100)}% accuracy
               </div>
             </div>
 
             <div style={{
               background: 'rgba(255, 255, 255, 0.04)',
-              padding: '18px',
+              padding: '16px',
               borderRadius: 'var(--radius-lg)',
               border: '1px solid var(--border-subtle)'
             }}>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>PART 2: IDENTIFICATION (30 ITEMS)</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>PART 2: ID (30 ITEMS)</div>
+              <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--accent-cyan)' }}>
                 {resultSummary.idScore} / 30
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>
                 {Math.round((resultSummary.idScore / 30) * 100)}% accuracy
               </div>
             </div>
 
             <div style={{
               background: 'rgba(255, 255, 255, 0.04)',
-              padding: '18px',
+              padding: '16px',
               borderRadius: 'var(--radius-lg)',
               border: '1px solid var(--border-subtle)'
             }}>
-              <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>PART 3: TRUE OR FALSE (30 ITEMS)</div>
-              <div style={{ fontSize: '1.8rem', fontWeight: 800, color: 'var(--accent-purple)' }}>
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)' }}>PART 3: T/F (30 ITEMS)</div>
+              <div style={{ fontSize: '1.7rem', fontWeight: 800, color: 'var(--accent-purple)' }}>
                 {resultSummary.tfScore} / 30
               </div>
-              <div style={{ fontSize: '0.8rem', color: 'var(--text-dim)' }}>
+              <div style={{ fontSize: '0.78rem', color: 'var(--text-dim)' }}>
                 {Math.round((resultSummary.tfScore / 30) * 100)}% accuracy
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', marginBottom: '32px' }}>
-            <button onClick={handleRetake} className="btn btn-secondary">
-              <RotateCcw size={16} /> Retake Examination
+          {/* Action Buttons */}
+          <div style={{ display: 'flex', gap: '12px', justifyContent: 'center', flexWrap: 'wrap', marginBottom: '28px' }}>
+            <button onClick={handleRetake} className="btn btn-primary" style={{ padding: '10px 20px', fontWeight: 700 }}>
+              <RotateCcw size={16} /> Retake Examination (New 100 Sample)
             </button>
-            <button onClick={() => setExamPart('mcq')} className="btn btn-primary">
-              Review Detailed Answers Below
+            <button
+              onClick={() => {
+                setReviewFilter('wrong');
+                setReviewPartFilter('all');
+              }}
+              className="btn btn-secondary"
+              style={{
+                borderColor: totalWrongCount > 0 ? 'rgba(225, 29, 72, 0.5)' : undefined,
+                color: totalWrongCount > 0 ? '#fda4af' : undefined
+              }}
+            >
+              <XCircle size={16} color="var(--pup-crimson)" /> Review Wrong Answers ({totalWrongCount})
             </button>
           </div>
         </div>
 
-        {/* Detailed Question Review Section */}
-        <div>
-          <h3 style={{ fontSize: '1.15rem', fontWeight: 700, color: '#fff', marginBottom: '16px' }}>
-            Detailed Item Review (100 Questions)
-          </h3>
+        {/* Separated Review Navigation Header */}
+        <div style={{
+          background: 'rgba(15, 23, 42, 0.65)',
+          borderRadius: 'var(--radius-lg)',
+          padding: '16px',
+          border: '1px solid var(--border-subtle)',
+          marginBottom: '20px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px', marginBottom: '14px' }}>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#fff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <Filter size={18} color="var(--pup-gold)" /> Examination Answers Review
+              </h3>
+              <p style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
+                Filter between correct and wrong answers for immediate mistake analysis. Results are saved locally.
+              </p>
+            </div>
 
-          {/* Part Switcher for Review */}
-          <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px' }}>
-            <button
-              onClick={() => setExamPart('mcq')}
-              className={`btn ${examPart === 'mcq' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
-            >
-              Part 1: MCQ ({resultSummary.mcqScore}/40)
-            </button>
-            <button
-              onClick={() => setExamPart('id')}
-              className={`btn ${examPart === 'id' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
-            >
-              Part 2: ID ({resultSummary.idScore}/30)
-            </button>
-            <button
-              onClick={() => setExamPart('tf')}
-              className={`btn ${examPart === 'tf' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
-            >
-              Part 3: T/F ({resultSummary.tfScore}/30)
-            </button>
-            <button
-              onClick={() => setExamPart('lab')}
-              className={`btn ${examPart === 'lab' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ fontSize: '0.8rem', whiteSpace: 'nowrap', flexShrink: 0 }}
-            >
-              Part 4: Major SQL Lab Exam
-            </button>
+            {/* Quick Status Filter Tabs */}
+            <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <button
+                onClick={() => setReviewFilter('all')}
+                className={`btn ${reviewFilter === 'all' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ fontSize: '0.76rem', padding: '6px 12px' }}
+              >
+                All (100)
+              </button>
+              <button
+                onClick={() => setReviewFilter('wrong')}
+                className={`btn ${reviewFilter === 'wrong' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{
+                  fontSize: '0.76rem',
+                  padding: '6px 12px',
+                  background: reviewFilter === 'wrong' ? 'var(--pup-crimson)' : 'rgba(225, 29, 72, 0.1)',
+                  borderColor: 'rgba(225, 29, 72, 0.4)',
+                  color: '#fff'
+                }}
+              >
+                <XCircle size={13} style={{ marginRight: '4px' }} />
+                Wrong ({totalWrongCount})
+              </button>
+              <button
+                onClick={() => setReviewFilter('correct')}
+                className={`btn ${reviewFilter === 'correct' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{
+                  fontSize: '0.76rem',
+                  padding: '6px 12px',
+                  background: reviewFilter === 'correct' ? 'var(--accent-emerald)' : 'rgba(16, 185, 129, 0.1)',
+                  borderColor: 'rgba(16, 185, 129, 0.4)',
+                  color: '#fff'
+                }}
+              >
+                <CheckCircle2 size={13} style={{ marginRight: '4px' }} />
+                Correct ({totalCorrectCount})
+              </button>
+              {totalFlaggedCount > 0 && (
+                <button
+                  onClick={() => setReviewFilter('flagged')}
+                  className={`btn ${reviewFilter === 'flagged' ? 'btn-primary' : 'btn-secondary'}`}
+                  style={{ fontSize: '0.76rem', padding: '6px 12px' }}
+                >
+                  <Flag size={13} style={{ marginRight: '4px' }} />
+                  Flagged ({totalFlaggedCount})
+                </button>
+              )}
+            </div>
           </div>
 
-          {examPart === 'mcq' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {EXAM_DATA.mcq.map((q) => {
-                const userAns = mcqAnswers[q.id];
-                const isCorrect = userAns === q.correctAnswer;
+          {/* Part Filter Tabs */}
+          <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px' }}>
+            <button
+              onClick={() => setReviewPartFilter('all')}
+              style={{
+                background: reviewPartFilter === 'all' ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)',
+                border: '1px solid var(--border-subtle)',
+                color: reviewPartFilter === 'all' ? '#fff' : 'var(--text-muted)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              All Sections
+            </button>
+            <button
+              onClick={() => setReviewPartFilter('mcq')}
+              style={{
+                background: reviewPartFilter === 'mcq' ? 'rgba(245, 158, 11, 0.25)' : 'rgba(255,255,255,0.04)',
+                border: '1px solid var(--border-subtle)',
+                color: reviewPartFilter === 'mcq' ? '#fff' : 'var(--text-muted)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Part 1: MCQ (1-40)
+            </button>
+            <button
+              onClick={() => setReviewPartFilter('id')}
+              style={{
+                background: reviewPartFilter === 'id' ? 'rgba(56, 189, 248, 0.25)' : 'rgba(255,255,255,0.04)',
+                border: '1px solid var(--border-subtle)',
+                color: reviewPartFilter === 'id' ? '#fff' : 'var(--text-muted)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Part 2: ID (41-70)
+            </button>
+            <button
+              onClick={() => setReviewPartFilter('tf')}
+              style={{
+                background: reviewPartFilter === 'tf' ? 'rgba(168, 85, 247, 0.25)' : 'rgba(255,255,255,0.04)',
+                border: '1px solid var(--border-subtle)',
+                color: reviewPartFilter === 'tf' ? '#fff' : 'var(--text-muted)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Part 3: T/F (71-100)
+            </button>
+            <button
+              onClick={() => setReviewPartFilter('lab')}
+              style={{
+                background: reviewPartFilter === 'lab' ? 'rgba(225, 29, 72, 0.25)' : 'rgba(255,255,255,0.04)',
+                border: '1px solid var(--border-subtle)',
+                color: reviewPartFilter === 'lab' ? '#fff' : 'var(--text-muted)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '4px 10px',
+                fontSize: '0.75rem',
+                cursor: 'pointer',
+                whiteSpace: 'nowrap'
+              }}
+            >
+              Part 4: Lab Exam
+            </button>
+          </div>
+        </div>
+
+        {/* Displaying Review Questions */}
+        {reviewPartFilter === 'lab' ? (
+          <div>
+            <ErdViewer />
+            <div style={{ marginTop: '20px' }}>
+              <LabConsole
+                labActivity={{
+                  title: activeExam.labExam.title,
+                  description: activeExam.labExam.scenario,
+                  instructions: activeExam.labExam.instructions,
+                  requiredClauses: activeExam.labExam.requiredClauses,
+                  expectedOutput: activeExam.labExam.sampleOutputGrid,
+                  starterSql: activeExam.labExam.canonicalQuery
+                }}
+              />
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            {filteredReviewQuestions.length === 0 ? (
+              <div style={{
+                textAlign: 'center',
+                padding: '40px 20px',
+                background: 'rgba(255,255,255,0.02)',
+                borderRadius: 'var(--radius-md)',
+                color: 'var(--text-muted)'
+              }}>
+                <CheckCircle2 size={36} color="var(--accent-emerald)" style={{ marginBottom: '8px' }} />
+                <div style={{ fontWeight: 700, color: '#fff', fontSize: '1rem' }}>No items match this filter!</div>
+                <div style={{ fontSize: '0.82rem' }}>
+                  {reviewFilter === 'wrong' ? 'Incredible work! You answered all selected items correctly.' : 'Try selecting another filter above.'}
+                </div>
+              </div>
+            ) : (
+              filteredReviewQuestions.map((q) => {
+                const isCorrect = q.isCorrect;
                 return (
-                  <div key={q.id} style={{
-                    padding: '16px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: `1px solid ${isCorrect ? 'rgba(16, 185, 129, 0.3)' : 'rgba(225, 29, 72, 0.3)'}`
-                  }}>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      {isCorrect ? <CheckCircle2 size={18} color="var(--accent-emerald)" /> : <XCircle size={18} color="var(--pup-crimson)" />}
-                      <div style={{ fontSize: '0.88rem' }}>
-                        <div style={{ fontWeight: 600, color: '#f8fafc', marginBottom: '4px' }}>
-                          {q.number}. {q.question}
+                  <div
+                    key={q.id}
+                    style={{
+                      padding: '16px',
+                      borderRadius: 'var(--radius-md)',
+                      background: isCorrect ? 'rgba(16, 185, 129, 0.03)' : 'rgba(225, 29, 72, 0.05)',
+                      border: `1px solid ${isCorrect ? 'rgba(16, 185, 129, 0.25)' : 'rgba(225, 29, 72, 0.4)'}`
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+                      <div style={{ marginTop: '2px', flexShrink: 0 }}>
+                        {isCorrect ? (
+                          <CheckCircle2 size={18} color="var(--accent-emerald)" />
+                        ) : (
+                          <XCircle size={18} color="var(--pup-crimson)" />
+                        )}
+                      </div>
+                      <div style={{ flex: 1, fontSize: '0.88rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
+                          <span style={{
+                            fontSize: '0.72rem',
+                            padding: '1px 6px',
+                            borderRadius: '4px',
+                            background: isCorrect ? 'rgba(16,185,129,0.2)' : 'rgba(225,29,72,0.2)',
+                            color: isCorrect ? '#a7f3d0' : '#fda4af',
+                            fontWeight: 700
+                          }}>
+                            {isCorrect ? 'CORRECT' : 'INCORRECT'}
+                          </span>
+                          <span style={{ fontSize: '0.72rem', color: 'var(--text-dim)' }}>
+                            {q.type === 'mcq' ? 'Part 1: MCQ' : q.type === 'id' ? 'Part 2: Identification' : 'Part 3: True/False'}
+                          </span>
                         </div>
-                        <div style={{ color: isCorrect ? '#a7f3d0' : '#fda4af', marginBottom: '3px' }}>
-                          Your answer: {q.options[userAns] || 'Unanswered'}
+
+                        <div style={{ fontWeight: 600, color: '#f8fafc', marginBottom: '8px', lineHeight: 1.45 }}>
+                          Q{q.number}. {q.question || q.statement}
                         </div>
-                        {!isCorrect && (
-                          <div style={{ color: '#a7f3d0', marginBottom: '3px' }}>
-                            Correct answer: {q.options[q.correctAnswer]}
+
+                        {/* MCQ Specific Comparison */}
+                        {q.type === 'mcq' && (
+                          <div style={{ marginBottom: '6px' }}>
+                            <div style={{ color: isCorrect ? '#a7f3d0' : '#fda4af', marginBottom: '3px' }}>
+                              <strong>Your Answer:</strong>{' '}
+                              {mcqAnswers[q.id] !== undefined
+                                ? `${String.fromCharCode(65 + mcqAnswers[q.id])}. ${q.options[mcqAnswers[q.id]]}`
+                                : 'Unanswered'}
+                            </div>
+                            {!isCorrect && (
+                              <div style={{ color: '#a7f3d0', marginBottom: '3px' }}>
+                                <strong>Correct Answer:</strong>{' '}
+                                {`${String.fromCharCode(65 + q.correctAnswer)}. ${q.options[q.correctAnswer]}`}
+                              </div>
+                            )}
                           </div>
                         )}
-                        <div style={{ color: 'var(--text-dim)', fontSize: '0.8rem', marginTop: '4px' }}>
+
+                        {/* Identification Specific Comparison */}
+                        {q.type === 'id' && (
+                          <div style={{ marginBottom: '6px' }}>
+                            <div style={{ color: isCorrect ? '#a7f3d0' : '#fda4af', marginBottom: '3px' }}>
+                              <strong>Your Answer:</strong> "{idAnswers[q.id] || 'Blank'}"
+                            </div>
+                            {!isCorrect && (
+                              <div style={{ color: '#a7f3d0', marginBottom: '3px' }}>
+                                <strong>Accepted Answer:</strong> {q.correctAnswerDisplay || q.correctAnswer}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* True/False Specific Comparison */}
+                        {q.type === 'tf' && (
+                          <div style={{ marginBottom: '6px' }}>
+                            <div style={{ color: isCorrect ? '#a7f3d0' : '#fda4af', marginBottom: '3px' }}>
+                              <strong>Your Answer:</strong>{' '}
+                              {tfAnswers[q.id] === undefined
+                                ? 'Unanswered'
+                                : tfAnswers[q.id]
+                                ? 'TRUE'
+                                : 'FALSE'}
+                            </div>
+                            {!isCorrect && (
+                              <div style={{ color: '#a7f3d0', marginBottom: '3px' }}>
+                                <strong>Correct Answer:</strong> {q.correctAnswer ? 'TRUE' : 'FALSE'}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Explanation */}
+                        <div style={{
+                          color: '#cbd5e1',
+                          fontSize: '0.8rem',
+                          marginTop: '6px',
+                          background: 'rgba(0,0,0,0.25)',
+                          padding: '8px 12px',
+                          borderRadius: 'var(--radius-sm)',
+                          borderLeft: `3px solid ${isCorrect ? 'var(--accent-emerald)' : 'var(--pup-crimson)'}`
+                        }}>
                           {q.explanation}
                         </div>
                       </div>
                     </div>
                   </div>
                 );
-              })}
-            </div>
-          )}
-
-          {examPart === 'id' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {EXAM_DATA.identification.map((q) => {
-                const userText = (idAnswers[q.id] || '').trim().toLowerCase();
-                const isMatch = q.acceptedAnswers.some((ans) => ans.toLowerCase().trim() === userText);
-                return (
-                  <div key={q.id} style={{
-                    padding: '16px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: `1px solid ${isMatch ? 'rgba(16, 185, 129, 0.3)' : 'rgba(225, 29, 72, 0.3)'}`
-                  }}>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      {isMatch ? <CheckCircle2 size={18} color="var(--accent-emerald)" /> : <XCircle size={18} color="var(--pup-crimson)" />}
-                      <div style={{ fontSize: '0.88rem' }}>
-                        <div style={{ fontWeight: 600, color: '#f8fafc', marginBottom: '4px' }}>
-                          {q.number}. {q.question}
-                        </div>
-                        <div style={{ color: isMatch ? '#a7f3d0' : '#fda4af', marginBottom: '3px' }}>
-                          Your answer: "{idAnswers[q.id] || 'Blank'}"
-                        </div>
-                        <div style={{ color: '#a7f3d0', marginBottom: '3px' }}>
-                          Accepted answer: {q.correctAnswer}
-                        </div>
-                        <div style={{ color: 'var(--text-dim)', fontSize: '0.8rem', marginTop: '4px' }}>
-                          {q.explanation}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {examPart === 'tf' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-              {EXAM_DATA.trueOrFalse.map((q) => {
-                const userAns = tfAnswers[q.id];
-                const isCorrect = userAns === q.correctAnswer;
-                return (
-                  <div key={q.id} style={{
-                    padding: '16px',
-                    borderRadius: 'var(--radius-md)',
-                    background: 'rgba(255, 255, 255, 0.02)',
-                    border: `1px solid ${isCorrect ? 'rgba(16, 185, 129, 0.3)' : 'rgba(225, 29, 72, 0.3)'}`
-                  }}>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      {isCorrect ? <CheckCircle2 size={18} color="var(--accent-emerald)" /> : <XCircle size={18} color="var(--pup-crimson)" />}
-                      <div style={{ fontSize: '0.88rem' }}>
-                        <div style={{ fontWeight: 600, color: '#f8fafc', marginBottom: '4px' }}>
-                          {q.number}. {q.statement}
-                        </div>
-                        <div style={{ color: isCorrect ? '#a7f3d0' : '#fda4af', marginBottom: '3px' }}>
-                          Your answer: {userAns === undefined ? 'Unanswered' : userAns ? 'True' : 'False'}
-                        </div>
-                        <div style={{ color: '#a7f3d0', marginBottom: '3px' }}>
-                          Correct answer: {q.correctAnswer ? 'True' : 'False'}
-                        </div>
-                        <div style={{ color: 'var(--text-dim)', fontSize: '0.8rem', marginTop: '4px' }}>
-                          {q.explanation}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {examPart === 'lab' && (
-            <div>
-              <ErdViewer />
-              <div style={{ marginTop: '20px' }}>
-                <LabConsole
-                  labActivity={{
-                    title: EXAM_DATA.labExam.title,
-                    description: EXAM_DATA.labExam.scenario,
-                    instructions: EXAM_DATA.labExam.instructions,
-                    requiredClauses: EXAM_DATA.labExam.requiredClauses,
-                    expectedOutput: EXAM_DATA.labExam.sampleOutputGrid,
-                    starterSql: EXAM_DATA.labExam.canonicalQuery
-                  }}
-                />
-              </div>
-            </div>
-          )}
-        </div>
+              })
+            )}
+          </div>
+        )}
       </div>
     );
   }
 
-  // Active Exam View
+  // ==========================================
+  // RENDER: ACTIVE EXAM WITH INSTANT FEEDBACK
+  // ==========================================
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '20px' }}>
-      {/* Exam Header Bar */}
+      {/* Top Header Bar */}
       <div className="glass-card" style={{ padding: '16px 20px' }}>
         <div style={{
           display: 'flex',
@@ -460,14 +777,14 @@ export default function ExamEngine({ onExamComplete }) {
                 Midterm Comprehensive Exam
               </span>
               <span className="badge badge-gold">
-                100 Items + Major Lab
+                100 Items Drawn from 205 Pool
               </span>
             </div>
             <h2 style={{ fontSize: '1.25rem', fontWeight: 800, color: '#fff' }}>
               Database Administration (COMP 008)
             </h2>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-              Answer all 100 questions and complete the Major Practical Relational Joins Laboratory.
+              Instant feedback active: Answers reveal immediate correctness and explanations upon selection.
             </p>
           </div>
 
@@ -514,7 +831,7 @@ export default function ExamEngine({ onExamComplete }) {
               className="btn btn-primary"
               style={{ fontSize: '0.8rem', padding: '6px 12px' }}
             >
-              Submit ({totalAnswered}/100)
+              Finish & Review ({totalAnswered}/100)
             </button>
           </div>
         </div>
@@ -574,7 +891,7 @@ export default function ExamEngine({ onExamComplete }) {
           })}
         </div>
 
-        {/* Quick Question Jump Navigator Drawer */}
+        {/* Quick Navigator Drawer */}
         {showJumpDrawer && (
           <div style={{
             background: 'rgba(10, 16, 28, 0.98)',
@@ -601,7 +918,7 @@ export default function ExamEngine({ onExamComplete }) {
                 Part 1: MCQ (Questions 1 - 40)
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                {EXAM_DATA.mcq.map((q) => {
+                {activeExam.mcq.map((q) => {
                   const isAns = mcqAnswers[q.id] !== undefined;
                   const isFl = flagged[q.id];
                   return (
@@ -633,7 +950,7 @@ export default function ExamEngine({ onExamComplete }) {
                 Part 2: Identification (Questions 41 - 70)
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                {EXAM_DATA.identification.map((q) => {
+                {activeExam.identification.map((q) => {
                   const isAns = (idAnswers[q.id] || '').trim().length > 0;
                   const isFl = flagged[q.id];
                   return (
@@ -665,7 +982,7 @@ export default function ExamEngine({ onExamComplete }) {
                 Part 3: True or False (Questions 71 - 100)
               </div>
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
-                {EXAM_DATA.trueOrFalse.map((q) => {
+                {activeExam.trueOrFalse.map((q) => {
                   const isAns = tfAnswers[q.id] !== undefined;
                   const isFl = flagged[q.id];
                   return (
@@ -694,94 +1011,217 @@ export default function ExamEngine({ onExamComplete }) {
         )}
       </div>
 
-      {/* Part 1: MCQ View */}
+      {/* Part 1: MCQ View with INSTANT PER-CLICK FEEDBACK */}
       {examPart === 'mcq' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {EXAM_DATA.mcq.map((q, idx) => (
-            <div
-              key={q.id}
-              id={`exam-q-${q.number}`}
-              className="glass-card"
-              style={{
-                padding: '16px 14px',
-                borderLeft: flagged[q.id] ? '3px solid var(--pup-gold)' : undefined
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px', gap: '10px' }}>
-                <h4 style={{ fontSize: '0.94rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5, wordBreak: 'break-word' }}>
-                  <span style={{ color: 'var(--pup-crimson)', fontWeight: 800, marginRight: '6px' }}>
-                    Q{q.number}.
-                  </span>
-                  {q.question}
-                </h4>
-                <button
-                  onClick={() => toggleFlag(q.id)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: flagged[q.id] ? 'var(--pup-gold)' : 'var(--text-dim)',
-                    cursor: 'pointer',
-                    padding: '4px',
-                    flexShrink: 0
-                  }}
-                  title="Flag for review"
-                >
-                  <Flag size={16} />
-                </button>
-              </div>
+          {activeExam.mcq.map((q) => {
+            const selectedIdx = mcqAnswers[q.id];
+            const isAnswered = selectedIdx !== undefined;
+            const isUserCorrect = isAnswered && selectedIdx === q.correctAnswer;
 
-              {/* Options */}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                {q.options.map((opt, optIdx) => {
-                  const isSelected = mcqAnswers[q.id] === optIdx;
-                  return (
-                    <button
-                      key={optIdx}
-                      onClick={() => handleSelectMcq(q.id, optIdx)}
-                      style={{
-                        display: 'flex',
-                        alignItems: 'flex-start',
-                        gap: '10px',
-                        padding: '10px 14px',
-                        borderRadius: 'var(--radius-md)',
-                        background: isSelected ? 'rgba(225, 29, 72, 0.15)' : 'rgba(255, 255, 255, 0.03)',
-                        border: `1px solid ${isSelected ? 'rgba(225, 29, 72, 0.6)' : 'var(--border-subtle)'}`,
-                        color: isSelected ? '#fff' : '#cbd5e1',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        fontSize: '0.84rem',
-                        transition: 'all 0.15s ease',
-                        wordBreak: 'break-word',
-                        lineHeight: 1.45
-                      }}
-                    >
-                      <div style={{
-                        width: '24px',
-                        height: '24px',
-                        borderRadius: '50%',
-                        background: isSelected ? 'var(--pup-crimson)' : 'rgba(255, 255, 255, 0.08)',
-                        color: isSelected ? '#fff' : 'var(--text-muted)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontSize: '0.74rem',
-                        fontWeight: 700,
-                        flexShrink: 0,
-                        marginTop: '1px'
-                      }}>
-                        {String.fromCharCode(65 + optIdx)}
-                      </div>
-                      <span style={{ flex: 1 }}>{opt}</span>
-                    </button>
-                  );
-                })}
+            return (
+              <div
+                key={q.id}
+                id={`exam-q-${q.number}`}
+                className="glass-card"
+                style={{
+                  padding: '16px 14px',
+                  borderLeft: flagged[q.id] ? '3px solid var(--pup-gold)' : undefined
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px', gap: '10px' }}>
+                  <h4 style={{ fontSize: '0.94rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5, wordBreak: 'break-word' }}>
+                    <span style={{ color: 'var(--pup-crimson)', fontWeight: 800, marginRight: '6px' }}>
+                      Q{q.number}.
+                    </span>
+                    {q.question}
+                  </h4>
+                  <button
+                    onClick={() => toggleFlag(q.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: flagged[q.id] ? 'var(--pup-gold)' : 'var(--text-dim)',
+                      cursor: 'pointer',
+                      padding: '4px',
+                      flexShrink: 0
+                    }}
+                    title="Flag for review"
+                  >
+                    <Flag size={16} />
+                  </button>
+                </div>
+
+                {/* Shuffled Options A, B, C, D with Immediate Per-Click Validation */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {q.options.map((opt, optIdx) => {
+                    const isSelected = selectedIdx === optIdx;
+                    const isTheCorrectOption = optIdx === q.correctAnswer;
+
+                    // Compute dynamic button color & styling based on instant answer state
+                    let btnBg = 'rgba(255, 255, 255, 0.03)';
+                    let btnBorder = 'var(--border-subtle)';
+                    let btnColor = '#cbd5e1';
+                    let letterBg = 'rgba(255, 255, 255, 0.08)';
+                    let letterColor = 'var(--text-muted)';
+                    let statusBadge = null;
+
+                    if (isAnswered) {
+                      if (isSelected) {
+                        if (isUserCorrect) {
+                          // Correct Choice
+                          btnBg = 'rgba(16, 185, 129, 0.18)';
+                          btnBorder = 'rgba(16, 185, 129, 0.8)';
+                          btnColor = '#a7f3d0';
+                          letterBg = 'var(--accent-emerald)';
+                          letterColor = '#fff';
+                          statusBadge = (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              color: 'var(--accent-emerald)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              background: 'rgba(16, 185, 129, 0.15)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              marginLeft: 'auto'
+                            }}>
+                              <CheckCircle2 size={13} /> Correct
+                            </span>
+                          );
+                        } else {
+                          // Incorrect Choice
+                          btnBg = 'rgba(225, 29, 72, 0.18)';
+                          btnBorder = 'rgba(225, 29, 72, 0.8)';
+                          btnColor = '#fda4af';
+                          letterBg = 'var(--pup-crimson)';
+                          letterColor = '#fff';
+                          statusBadge = (
+                            <span style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 700,
+                              color: 'var(--pup-crimson)',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              background: 'rgba(225, 29, 72, 0.15)',
+                              padding: '2px 6px',
+                              borderRadius: '4px',
+                              marginLeft: 'auto'
+                            }}>
+                              <XCircle size={13} /> Your Choice
+                            </span>
+                          );
+                        }
+                      } else if (isTheCorrectOption && !isUserCorrect) {
+                        // Reveal the true answer when user selected incorrectly
+                        btnBg = 'rgba(16, 185, 129, 0.1)';
+                        btnBorder = 'rgba(16, 185, 129, 0.5)';
+                        btnColor = '#a7f3d0';
+                        letterBg = 'rgba(16, 185, 129, 0.4)';
+                        letterColor = '#fff';
+                        statusBadge = (
+                          <span style={{
+                            fontSize: '0.7rem',
+                            fontWeight: 700,
+                            color: 'var(--accent-emerald)',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '3px',
+                            background: 'rgba(16, 185, 129, 0.15)',
+                            padding: '2px 6px',
+                            borderRadius: '4px',
+                            marginLeft: 'auto'
+                          }}>
+                            <CheckCircle2 size={13} /> Correct Answer
+                          </span>
+                        );
+                      }
+                    }
+
+                    return (
+                      <button
+                        key={optIdx}
+                        onClick={() => handleSelectMcq(q.id, optIdx)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '10px',
+                          padding: '10px 14px',
+                          borderRadius: 'var(--radius-md)',
+                          background: btnBg,
+                          border: `1px solid ${btnBorder}`,
+                          color: btnColor,
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: '0.84rem',
+                          transition: 'all 0.15s ease',
+                          wordBreak: 'break-word',
+                          lineHeight: 1.45
+                        }}
+                      >
+                        <div style={{
+                          width: '24px',
+                          height: '24px',
+                          borderRadius: '50%',
+                          background: letterBg,
+                          color: letterColor,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '0.74rem',
+                          fontWeight: 700,
+                          flexShrink: 0
+                        }}>
+                          {String.fromCharCode(65 + optIdx)}
+                        </div>
+                        <span style={{ flex: 1 }}>{opt}</span>
+                        {statusBadge}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Instant Feedback Card Revealed Immediately On Selection */}
+                {isAnswered && (
+                  <div style={{
+                    marginTop: '12px',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: isUserCorrect ? 'rgba(16, 185, 129, 0.08)' : 'rgba(225, 29, 72, 0.08)',
+                    border: `1px solid ${isUserCorrect ? 'rgba(16, 185, 129, 0.3)' : 'rgba(225, 29, 72, 0.3)'}`
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      {isUserCorrect ? (
+                        <>
+                          <CheckCircle2 size={16} color="var(--accent-emerald)" />
+                          <strong style={{ color: 'var(--accent-emerald)', fontSize: '0.84rem' }}>
+                            Correct! Great job.
+                          </strong>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle size={16} color="var(--pup-crimson)" />
+                          <strong style={{ color: 'var(--pup-crimson)', fontSize: '0.84rem' }}>
+                            Incorrect — Correct answer: Option {String.fromCharCode(65 + q.correctAnswer)}: {q.options[q.correctAnswer]}
+                          </strong>
+                        </>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+                      {q.explanation}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
-      {/* Part 2: Identification View */}
+      {/* Part 2: Identification View with Check & Instant Feedback */}
       {examPart === 'id' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
           <div style={{
@@ -792,125 +1232,237 @@ export default function ExamEngine({ onExamComplete }) {
             fontSize: '0.84rem',
             color: '#cbd5e1'
           }}>
-            Type your answer in the box provided. Answers are based verbatim on the course instructional material. Spelling matters, but casing is flexible.
+            Type your answer and tap <strong>Check Answer</strong> (or press Enter). Feedback is evaluated immediately against the course material.
           </div>
 
-          {EXAM_DATA.identification.map((q) => (
-            <div key={q.id} id={`exam-q-${q.number}`} className="glass-card" style={{ padding: '16px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <h4 style={{ fontSize: '0.98rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5 }}>
-                  <span style={{ color: 'var(--accent-cyan)', fontWeight: 800, marginRight: '6px' }}>
-                    Q{q.number}.
-                  </span>
-                  {q.question}
-                </h4>
-                <button
-                  onClick={() => toggleFlag(q.id)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: flagged[q.id] ? 'var(--pup-gold)' : 'var(--text-dim)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Flag size={16} />
-                </button>
-              </div>
+          {activeExam.identification.map((q) => {
+            const evalState = idEvaluated[q.id];
+            const isChecked = evalState && evalState.checked;
+            const isUserMatch = isChecked && evalState.isMatch;
 
-              <input
-                type="text"
-                value={idAnswers[q.id] || ''}
-                onChange={(e) => handleInputId(q.id, e.target.value)}
-                placeholder="Type your answer here..."
-                style={{
-                  width: '100%',
-                  background: '#090e1a',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '12px 16px',
-                  color: '#fff',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: '16px',
-                  outline: 'none'
-                }}
-              />
-            </div>
-          ))}
+            return (
+              <div key={q.id} id={`exam-q-${q.number}`} className="glass-card" style={{ padding: '16px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <h4 style={{ fontSize: '0.98rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5 }}>
+                    <span style={{ color: 'var(--accent-cyan)', fontWeight: 800, marginRight: '6px' }}>
+                      Q{q.number}.
+                    </span>
+                    {q.question}
+                  </h4>
+                  <button
+                    onClick={() => toggleFlag(q.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: flagged[q.id] ? 'var(--pup-gold)' : 'var(--text-dim)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Flag size={16} />
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                  <input
+                    type="text"
+                    value={idAnswers[q.id] || ''}
+                    onChange={(e) => handleInputId(q.id, e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') handleCheckIdAnswer(q);
+                    }}
+                    placeholder="Type your answer here..."
+                    style={{
+                      flex: 1,
+                      minWidth: '200px',
+                      background: '#090e1a',
+                      border: `1px solid ${
+                        isChecked
+                          ? isUserMatch
+                            ? 'rgba(16, 185, 129, 0.8)'
+                            : 'rgba(225, 29, 72, 0.8)'
+                          : 'var(--border-subtle)'
+                      }`,
+                      borderRadius: 'var(--radius-md)',
+                      padding: '10px 14px',
+                      color: '#fff',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: '15px',
+                      outline: 'none'
+                    }}
+                  />
+                  <button
+                    onClick={() => handleCheckIdAnswer(q)}
+                    className="btn btn-primary"
+                    style={{ fontSize: '0.8rem', padding: '10px 14px', whiteSpace: 'nowrap' }}
+                  >
+                    <Send size={14} style={{ marginRight: '4px' }} /> Check Answer
+                  </button>
+                </div>
+
+                {/* Instant Feedback for Identification */}
+                {isChecked && (
+                  <div style={{
+                    marginTop: '12px',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: isUserMatch ? 'rgba(16, 185, 129, 0.08)' : 'rgba(225, 29, 72, 0.08)',
+                    border: `1px solid ${isUserMatch ? 'rgba(16, 185, 129, 0.3)' : 'rgba(225, 29, 72, 0.3)'}`
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      {isUserMatch ? (
+                        <>
+                          <CheckCircle2 size={16} color="var(--accent-emerald)" />
+                          <strong style={{ color: 'var(--accent-emerald)', fontSize: '0.84rem' }}>
+                            Correct! Exact course match.
+                          </strong>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle size={16} color="var(--pup-crimson)" />
+                          <strong style={{ color: 'var(--pup-crimson)', fontSize: '0.84rem' }}>
+                            Incorrect — Accepted Answer: {q.correctAnswerDisplay || q.correctAnswer}
+                          </strong>
+                        </>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+                      {q.explanation}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
 
-      {/* Part 3: True or False View */}
+      {/* Part 3: True or False View with INSTANT PER-CLICK FEEDBACK */}
       {examPart === 'tf' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-          {EXAM_DATA.trueOrFalse.map((q) => (
-            <div key={q.id} id={`exam-q-${q.number}`} className="glass-card" style={{ padding: '16px 14px' }}>
-              <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
-                <h4 style={{ fontSize: '0.98rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5 }}>
-                  <span style={{ color: 'var(--accent-purple)', fontWeight: 800, marginRight: '6px' }}>
-                    Q{q.number}.
-                  </span>
-                  {q.statement}
-                </h4>
-                <button
-                  onClick={() => toggleFlag(q.id)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: flagged[q.id] ? 'var(--pup-gold)' : 'var(--text-dim)',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Flag size={16} />
-                </button>
-              </div>
+          {activeExam.trueOrFalse.map((q) => {
+            const userChoice = tfAnswers[q.id];
+            const isAnswered = userChoice !== undefined;
+            const isUserCorrect = isAnswered && userChoice === q.correctAnswer;
 
-              <div style={{ display: 'flex', gap: '12px' }}>
-                {[true, false].map((val) => {
-                  const isSelected = tfAnswers[q.id] === val;
-                  return (
-                    <button
-                      key={String(val)}
-                      onClick={() => handleSelectTf(q.id, val)}
-                      style={{
-                        flex: 1,
-                        padding: '12px',
-                        borderRadius: 'var(--radius-md)',
-                        background: isSelected
-                          ? val
-                            ? 'rgba(16, 185, 129, 0.2)'
-                            : 'rgba(225, 29, 72, 0.2)'
-                          : 'rgba(255, 255, 255, 0.03)',
-                        border: `1px solid ${
-                          isSelected
-                            ? val
-                              ? 'rgba(16, 185, 129, 0.6)'
-                              : 'rgba(225, 29, 72, 0.6)'
-                            : 'var(--border-subtle)'
-                        }`,
-                        color: isSelected ? '#fff' : '#cbd5e1',
-                        cursor: 'pointer',
-                        fontWeight: 700,
-                        fontSize: '0.9rem',
-                        transition: 'all 0.15s ease'
-                      }}
-                    >
-                      {val ? 'TRUE' : 'FALSE'}
-                    </button>
-                  );
-                })}
+            return (
+              <div key={q.id} id={`exam-q-${q.number}`} className="glass-card" style={{ padding: '16px 14px' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <h4 style={{ fontSize: '0.98rem', fontWeight: 600, color: '#f8fafc', lineHeight: 1.5 }}>
+                    <span style={{ color: 'var(--accent-purple)', fontWeight: 800, marginRight: '6px' }}>
+                      Q{q.number}.
+                    </span>
+                    {q.statement}
+                  </h4>
+                  <button
+                    onClick={() => toggleFlag(q.id)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: flagged[q.id] ? 'var(--pup-gold)' : 'var(--text-dim)',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <Flag size={16} />
+                  </button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '12px' }}>
+                  {[true, false].map((val) => {
+                    const isSelected = userChoice === val;
+                    const isTheCorrectStatement = val === q.correctAnswer;
+
+                    let btnBg = 'rgba(255, 255, 255, 0.03)';
+                    let btnBorder = 'var(--border-subtle)';
+                    let btnColor = '#cbd5e1';
+
+                    if (isAnswered) {
+                      if (isSelected) {
+                        if (isUserCorrect) {
+                          btnBg = 'rgba(16, 185, 129, 0.2)';
+                          btnBorder = 'rgba(16, 185, 129, 0.8)';
+                          btnColor = '#a7f3d0';
+                        } else {
+                          btnBg = 'rgba(225, 29, 72, 0.2)';
+                          btnBorder = 'rgba(225, 29, 72, 0.8)';
+                          btnColor = '#fda4af';
+                        }
+                      } else if (isTheCorrectStatement && !isUserCorrect) {
+                        btnBg = 'rgba(16, 185, 129, 0.1)';
+                        btnBorder = 'rgba(16, 185, 129, 0.5)';
+                        btnColor = '#a7f3d0';
+                      }
+                    }
+
+                    return (
+                      <button
+                        key={String(val)}
+                        onClick={() => handleSelectTf(q.id, val)}
+                        style={{
+                          flex: 1,
+                          padding: '12px',
+                          borderRadius: 'var(--radius-md)',
+                          background: btnBg,
+                          border: `1px solid ${btnBorder}`,
+                          color: btnColor,
+                          cursor: 'pointer',
+                          fontWeight: 700,
+                          fontSize: '0.9rem',
+                          transition: 'all 0.15s ease',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '6px'
+                        }}
+                      >
+                        {isAnswered && isSelected && (isUserCorrect ? <Check size={16} /> : <X size={16} />)}
+                        {val ? 'TRUE' : 'FALSE'}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Instant Feedback Card Revealed Immediately */}
+                {isAnswered && (
+                  <div style={{
+                    marginTop: '12px',
+                    padding: '12px 14px',
+                    borderRadius: 'var(--radius-md)',
+                    background: isUserCorrect ? 'rgba(16, 185, 129, 0.08)' : 'rgba(225, 29, 72, 0.08)',
+                    border: `1px solid ${isUserCorrect ? 'rgba(16, 185, 129, 0.3)' : 'rgba(225, 29, 72, 0.3)'}`
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                      {isUserCorrect ? (
+                        <>
+                          <CheckCircle2 size={16} color="var(--accent-emerald)" />
+                          <strong style={{ color: 'var(--accent-emerald)', fontSize: '0.84rem' }}>
+                            Correct Statement!
+                          </strong>
+                        </>
+                      ) : (
+                        <>
+                          <XCircle size={16} color="var(--pup-crimson)" />
+                          <strong style={{ color: 'var(--pup-crimson)', fontSize: '0.84rem' }}>
+                            Incorrect — The statement is actually {q.correctAnswer ? 'TRUE' : 'FALSE'}.
+                          </strong>
+                        </>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.8rem', color: '#cbd5e1', lineHeight: 1.45 }}>
+                      {q.explanation}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {/* Part 4: Major SQL Lab Exam View */}
       {examPart === 'lab' && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-          {/* ERD Diagram with 6 Tables and Connection Lines */}
           <ErdViewer />
 
-          {/* Target Sample Output Table (6-8 Columns) matching Prof. Contreras Image 2 */}
           <div className="glass-card" style={{ padding: '20px' }}>
             <div style={{
               display: 'flex',
@@ -975,7 +1527,7 @@ export default function ExamEngine({ onExamComplete }) {
               </div>
             </div>
 
-            {/* Display Mode 1: Exact MySQL Console ASCII format as shown on Prof's Screen (Image 2) */}
+            {/* Display Mode 1: MySQL ASCII console */}
             {sampleOutputView === 'terminal' ? (
               <div style={{
                 background: '#04070f',
@@ -1019,11 +1571,20 @@ export default function ExamEngine({ onExamComplete }) {
                   overflowX: 'auto',
                   WebkitOverflowScrolling: 'touch'
                 }}>
-                  <code>{EXAM_DATA.labExam.asciiOutput}</code>
+                  <code>{activeExam.labExam.asciiOutput || `+-------------+---------------------------+-------------------------------------+------------------+-----------------+-----------+------------------+
+| orderNumber | customerName              | productName                         | productLine      | quantityOrdered | priceEach | salesRepName     |
++-------------+---------------------------+-------------------------------------+------------------+-----------------+-----------+------------------+
+|       10101 | Atelier graphique         | 1969 Harley Davidson Ultimate Chop  | Motorcycles      |              25 |     95.70 | Gerard Hernandez |
+|       10101 | Atelier graphique         | 1952 Alpine Renault 1300            | Classic Cars     |              30 |    214.30 | Gerard Hernandez |
+|       10102 | Signal Gift Stores        | 1968 Ford Mustang                   | Classic Cars     |              45 |    120.50 | Leslie Jennings  |
+|       10102 | Signal Gift Stores        | 1917 Grand Touring Car              | Vintage Cars     |              18 |     86.20 | Leslie Jennings  |
+|       10103 | Australian Collectors, Co | 1996 Moto Guzzi 1100i               | Motorcycles      |              35 |    110.00 | Andy Fixter      |
+|       10104 | La Rochelle Gifts         | 1960 BSA Gold Star DBD34            | Motorcycles      |              22 |     75.40 | Gerard Hernandez |
+|       10105 | Baane Mini Imports        | 1969 Dodge Charger                  | Classic Cars     |              28 |    135.80 | Barry Jones      |
++-------------+---------------------------+-------------------------------------+------------------+-----------------+-----------+------------------+`}</code>
                 </pre>
               </div>
             ) : (
-              /* Display Mode 2: HTML Table Grid */
               <div style={{
                 overflowX: 'auto',
                 WebkitOverflowScrolling: 'touch',
@@ -1039,7 +1600,7 @@ export default function ExamEngine({ onExamComplete }) {
                 }}>
                   <thead>
                     <tr style={{ background: 'rgba(255, 255, 255, 0.05)' }}>
-                      {EXAM_DATA.labExam.requiredColumns.map((col, idx) => (
+                      {activeExam.labExam.requiredColumns.map((col, idx) => (
                         <th key={idx} style={{ padding: '8px 12px', textAlign: 'left', color: 'var(--accent-cyan)', borderBottom: '1px solid rgba(255,255,255,0.1)' }}>
                           {col}
                         </th>
@@ -1047,9 +1608,9 @@ export default function ExamEngine({ onExamComplete }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {EXAM_DATA.labExam.sampleOutputGrid.map((row, rIdx) => (
+                    {activeExam.labExam.sampleOutputGrid.map((row, rIdx) => (
                       <tr key={rIdx} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                        {EXAM_DATA.labExam.requiredColumns.map((col, cIdx) => (
+                        {activeExam.labExam.requiredColumns.map((col, cIdx) => (
                           <td key={cIdx} style={{ padding: '6px 12px', color: '#e2e8f0', whiteSpace: 'nowrap' }}>
                             {row[col] === null ? (
                               <span style={{ color: 'var(--pup-gold)', fontStyle: 'italic' }}>NULL</span>
@@ -1066,14 +1627,13 @@ export default function ExamEngine({ onExamComplete }) {
             )}
           </div>
 
-          {/* Interactive Console for Lab Exam with STRICTLY NO HINTS */}
           <LabConsole
             labActivity={{
-              title: EXAM_DATA.labExam.title,
-              description: EXAM_DATA.labExam.scenario,
-              instructions: EXAM_DATA.labExam.instructions,
-              requiredClauses: EXAM_DATA.labExam.requiredClauses,
-              expectedOutput: EXAM_DATA.labExam.sampleOutputGrid,
+              title: activeExam.labExam.title,
+              description: activeExam.labExam.scenario,
+              instructions: activeExam.labExam.instructions,
+              requiredClauses: activeExam.labExam.requiredClauses,
+              expectedOutput: activeExam.labExam.sampleOutputGrid,
               starterSql: `-- Type your examination SQL query below\n-- Strictly NO hints are provided. Use required clauses to produce the target output.\n`
             }}
             onLabPassed={() => setLabPassed(true)}

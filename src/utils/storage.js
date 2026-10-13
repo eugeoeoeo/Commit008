@@ -132,3 +132,33 @@ export function resetAllProgress() {
   localStorage.removeItem(STORAGE_KEY);
   return defaultState;
 }
+
+// Active Practice Exam Session Persistence
+const ACTIVE_EXAM_STORAGE_KEY = 'pup_comp008_active_exam_session_v2';
+
+export function loadActiveExamSession() {
+  try {
+    const raw = localStorage.getItem(ACTIVE_EXAM_STORAGE_KEY);
+    if (!raw) return null;
+    return JSON.parse(raw);
+  } catch (err) {
+    console.warn('Could not read active exam session from storage', err);
+    return null;
+  }
+}
+
+export function saveActiveExamSession(sessionState) {
+  try {
+    localStorage.setItem(ACTIVE_EXAM_STORAGE_KEY, JSON.stringify(sessionState));
+  } catch (err) {
+    console.warn('Could not save active exam session to storage', err);
+  }
+}
+
+export function clearActiveExamSession() {
+  try {
+    localStorage.removeItem(ACTIVE_EXAM_STORAGE_KEY);
+  } catch (err) {
+    console.warn('Could not clear active exam session from storage', err);
+  }
+}

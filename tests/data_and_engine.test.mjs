@@ -47,14 +47,44 @@ allLessons.forEach(lesson => {
 });
 console.log('✓ All 15 interactive lab activities verified.');
 
-// 4. Verify 100-Item Practice Examination
-console.log('4. Checking 100-Item Practice Exam structure...');
+// 4. Verify 100-Item Practice Examination & Expanded Pool
+console.log('4. Checking 100-Item Practice Exam structure & Expanded 205-question Pool...');
 assert.strictEqual(EXAM_DATA.mcq.length, 40, 'Part 1 must have exactly 40 MCQ questions');
 assert.strictEqual(EXAM_DATA.identification.length, 30, 'Part 2 must have exactly 30 Identification questions');
 assert.strictEqual(EXAM_DATA.trueOrFalse.length, 30, 'Part 3 must have exactly 30 True/False questions');
 
 const totalItems = EXAM_DATA.mcq.length + EXAM_DATA.identification.length + EXAM_DATA.trueOrFalse.length;
 assert.strictEqual(totalItems, 100, 'Theoretical exam must have exactly 100 questions');
+
+// Verify Master Pool >= 150 items
+import { EXAM_POOL } from '../src/data/examPool.js';
+import { generateExamSession } from '../src/utils/examSampler.js';
+
+const totalPoolQuestions = EXAM_POOL.mcq.length + EXAM_POOL.identification.length + EXAM_POOL.trueOrFalse.length;
+assert.ok(totalPoolQuestions >= 150, `Pool must have at least 150 questions (has ${totalPoolQuestions})`);
+assert.ok(EXAM_POOL.mcq.length >= 80, `MCQ pool must have >= 80 questions (has ${EXAM_POOL.mcq.length})`);
+assert.ok(EXAM_POOL.identification.length >= 50, `Identification pool must have >= 50 questions (has ${EXAM_POOL.identification.length})`);
+assert.ok(EXAM_POOL.trueOrFalse.length >= 50, `True/False pool must have >= 50 questions (has ${EXAM_POOL.trueOrFalse.length})`);
+
+// Test Option Distribution Uniformity across A, B, C, D (elimination of 'Always B' bias)
+const answerFrequencies = [0, 0, 0, 0];
+for (let trial = 0; trial < 50; trial++) {
+  const session = generateExamSession(false);
+  assert.strictEqual(session.mcq.length, 40, 'Sampled session must have 40 MCQs');
+  assert.strictEqual(session.identification.length, 30, 'Sampled session must have 30 IDs');
+  assert.strictEqual(session.trueOrFalse.length, 30, 'Sampled session must have 30 TFs');
+  session.mcq.forEach(q => {
+    answerFrequencies[q.correctAnswer]++;
+  });
+}
+const totalSampledMCQs = 50 * 40; // 2000 items
+const minPerOption = totalSampledMCQs * 0.15; // At least 15% (300)
+const maxPerOption = totalSampledMCQs * 0.35; // At most 35% (700)
+console.log(`Option distribution across 2000 sampled items: A=${answerFrequencies[0]}, B=${answerFrequencies[1]}, C=${answerFrequencies[2]}, D=${answerFrequencies[3]}`);
+answerFrequencies.forEach((count, idx) => {
+  const letter = String.fromCharCode(65 + idx);
+  assert.ok(count >= minPerOption && count <= maxPerOption, `Option ${letter} must be reasonably distributed (got ${count})`);
+});
 
 // Verify MCQ items
 EXAM_DATA.mcq.forEach(q => {
@@ -80,7 +110,7 @@ assert.ok(EXAM_DATA.labExam, 'Major Lab Exam must exist');
 assert.strictEqual(EXAM_DATA.labExam.erdSchema.tables.length, 6, 'ERD schema must have 6 interconnected tables');
 assert.strictEqual(EXAM_DATA.labExam.requiredColumns.length, 7, 'Required columns must be 7 columns');
 assert.ok(EXAM_DATA.labExam.sampleOutputGrid.length >= 5, 'Sample output grid must have realistic rows');
-console.log('✓ 100-Item Practice Exam & Major Lab Exam verified.');
+console.log('✓ 100-Item Practice Exam, 205-question Master Pool, & Option Shuffler verified.');
 
 // 5. Test SQL Execution Engine
 console.log('5. Testing in-browser SQL Execution Engine...');
